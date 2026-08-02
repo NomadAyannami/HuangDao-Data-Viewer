@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<!-- saved from url=(0086)http://localhost:8765/%E6%95%B0%E6%8D%AE%E6%9F%A5%E7%9C%8B%E9%9D%A2%E6%9D%BF.html?v=57 -->
+<html lang="zh-CN"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>数据查看面板 — 黄导项目</title>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family: -apple-system, "Microsoft YaHei", sans-serif; background:#f0f2f5; color:#333; }
+.header { background:linear-gradient(135deg,#1a1a2e,#16213e); color:#fff; padding:14px 24px; display:flex; align-items:center; justify-content:space-between; }
+.header h1 { font-size:20px; font-weight:600; }
+.header .meta { font-size:13px; opacity:.7; }
+
+.filter-bar { background:#fff; padding:10px 24px; display:flex; gap:8px; flex-wrap:wrap; align-items:center; border-bottom:1px solid #e8e8e8; }
+.filter-bar label { font-size:13px; color:#666; font-weight:500; white-space:nowrap; }
+.filter-bar .sep { color:#ddd; margin:0 2px; }
+.filter-bar button { padding:5px 14px; background:#1890ff; color:#fff; border:none; border-radius:4px; cursor:pointer; font-size:13px; }
+.filter-bar button:hover { background:#40a9ff; }
+.filter-bar button.reset { background:#fff; color:#666; border:1px solid #d9d9d9; }
+
+/* 多选下拉 */
+.ms-wrap { position:relative; display:inline-block; }
+.ms-btn { padding:5px 8px; border:1px solid #d9d9d9; border-radius:4px; font-size:13px; background:#fff; cursor:pointer; min-width:90px; text-align:left; white-space:nowrap; display:flex; align-items:center; justify-content:space-between; gap:4px; }
+.ms-btn:hover { border-color:#1890ff; }
+.ms-btn .arrow { font-size:10px; color:#999; }
+.ms-btn.has-sel { border-color:#1890ff; background:#e6f7ff; }
+.ms-btn:disabled { opacity:.4; pointer-events:none; background:#f5f5f5; }
+.ms-drop { display:none; position:absolute; top:100%; left:0; margin-top:2px; background:#fff; border:1px solid #d9d9d9; border-radius:4px; box-shadow:0 4px 12px rgba(0,0,0,.12); z-index:50; min-width:180px; max-height:320px; }
+.ms-drop.show { display:flex; flex-direction:column; }
+.ms-drop .ms-actions { padding:4px 10px; border-bottom:1px solid #f0f0f0; display:flex; gap:6px; }
+.ms-drop .ms-actions button { padding:2px 8px; font-size:11px; border-radius:3px; border:1px solid #d9d9d9; background:#fff; cursor:pointer; }
+.ms-drop .ms-actions button:hover { border-color:#1890ff; color:#1890ff; }
+.ms-drop .ms-agg { padding:3px 10px; border-bottom:1px solid #f0f0f0; }
+.ms-items { padding:4px 0; overflow-y:auto; flex:1; }
+.ms-items.disabled { opacity:.4; pointer-events:none; }
+.ms-drop .ms-all { padding:3px 10px; border-bottom:1px solid #f0f0f0; }
+.ms-drop label { display:flex; align-items:center; gap:6px; padding:4px 10px; font-size:13px; cursor:pointer; white-space:nowrap; }
+.ms-drop label:hover { background:#f5f5f5; }
+.ms-drop input[type=checkbox] { width:14px; height:14px; accent-color:#1890ff; }
+
+/* 卡片 */
+.summary { display:flex; gap:10px; padding:14px 24px; flex-wrap:wrap; }
+.card { background:#fff; border-radius:8px; padding:12px 16px; min-width:130px; box-shadow:0 1px 3px rgba(0,0,0,.08); }
+.card.abs { border-left:4px solid #1890ff; }
+.card.rate { border-left:4px solid #52c41a; }
+.card .label { font-size:12px; color:#999; margin-bottom:2px; white-space:nowrap; }
+.card .value { font-size:22px; font-weight:700; color:#1a1a2e; }
+.card.abs .value { font-size:26px; }
+.card .note { font-size:11px; color:#bbb; margin-top:1px; }
+
+/* 表格 */
+.table-wrap { margin:0 24px 24px; background:#fff; border-radius:8px; box-shadow:0 1px 3px rgba(0,0,0,.08); overflow:auto; }
+.table-toolbar { padding:12px 20px; border-bottom:1px solid #f0f0f0; display:flex; align-items:center; justify-content:space-between; }
+.table-toolbar h3 { font-size:15px; color:#1a1a2e; }
+.table-toolbar .table-info { font-size:12px; color:#999; font-weight:400; }
+.table-scroll { overflow:auto; }
+.table-scroll::-webkit-scrollbar { width:10px; height:10px; }
+.table-scroll::-webkit-scrollbar-thumb { background:#c1c1c1; border-radius:5px; }
+table { border-collapse:separate; border-spacing:0; font-size:14px; }
+th { background:#fafafa; padding:7px 5px; text-align:center; font-weight:600; border-bottom:2px solid #e8e8e8; white-space:nowrap; position:sticky; top:0; z-index:2; }
+th.sticky-left { z-index:3; min-width:40px; }
+td { padding:5px 5px; text-align:center; border-bottom:1px solid #f0f0f0; white-space:nowrap; background:#fff; }
+td.sticky-left { position:sticky; z-index:1; background:#fff; padding:5px 10px; }
+tr:hover td { background:#e6f7ff; }
+tr:hover td.sticky-left { background:#e6f7ff; }
+th.sticky-last::after { content:''; position:absolute; top:0;right:0;bottom:0;width:3px; background:#d0d0d0; }
+td.sticky-last::after { content:''; position:absolute; top:0;right:0;bottom:0;width:3px; background:#e8e8e8; }
+th.sortable { min-width:140px; cursor:pointer; }
+td:not(.sticky-left) { min-width:140px; padding:5px 2px; }
+th.sortable:hover { background:#e6f7ff; }
+th.draggable { cursor:grab; }
+th.draggable:active { cursor:grabbing; }
+th.dragging { opacity:.4; background:#e6f7ff; }
+th.drag-over { border-left:3px solid #1890ff; }
+.loading,.no-data { text-align:center; padding:50px; color:#999; font-size:14px; }
+
+/* 弹窗 */
+.modal-overlay { display:none; position:fixed; top:0;left:0;right:0;bottom:0; background:rgba(0,0,0,.4); z-index:100; align-items:center; justify-content:center; }
+.modal-overlay.show { display:flex; }
+.modal { background:#fff; border-radius:10px; max-width:500px; width:90%; max-height:80vh; overflow:auto; box-shadow:0 8px 30px rgba(0,0,0,.15); }
+.modal-header { padding:14px 20px; border-bottom:1px solid #f0f0f0; display:flex; justify-content:space-between; align-items:center; }
+.modal-header h4 { font-size:16px; }
+.modal-header .close { background:none; border:none; font-size:20px; cursor:pointer; color:#999; }
+.modal-body { padding:14px 20px; }
+.modal-body label { display:flex; align-items:center; gap:8px; padding:6px 0; font-size:13px; cursor:pointer; }
+.modal-body label:hover { color:#1890ff; }
+.modal-body input[type=checkbox] { width:16px; height:16px; accent-color:#1890ff; }
+.modal-footer { padding:12px 20px; border-top:1px solid #f0f0f0; display:flex; gap:8px; justify-content:flex-end; }
+.modal-footer button { padding:6px 18px; border-radius:4px; font-size:13px; cursor:pointer; }
+.btn-primary { background:#1890ff; color:#fff; border:none; }
+.btn-default { background:#fff; color:#666; border:1px solid #d9d9d9; }
+.col-picker-btn { padding:4px 12px; background:#fff; border:1px solid #d9d9d9; border-radius:4px; cursor:pointer; font-size:12px; color:#666; }
+.col-picker-btn:hover { border-color:#1890ff; color:#1890ff; }
+
+@media (max-width:768px) { .filter-bar{flex-direction:column;align-items:flex-start;} .summary{flex-direction:column;} .card{min-width:auto;} }
+</style>
+</head>
+<body>
+
+<div class="header"><h1>📊 数据查看面板</h1><span class="meta" id="headerMeta">5,791 条记录 | 27 个期数</span></div>
+
+<div class="filter-bar">
+  <label>月份</label><div class="ms-wrap" id="msMonth"><div class="ms-btn">全部 <span class="arrow">▼</span></div><div class="ms-drop" id="dropMonth"><div class="ms-actions"><label class="ms-all"><input type="checkbox" onchange="toggleAll(&#39;Month&#39;,this.checked)"> 全选</label></div><div class="ms-agg"><label><input type="checkbox" onchange="toggleAgg(&#39;Month&#39;,this.checked)"> 汇总</label></div><div class="ms-items"><label><input type="checkbox" value="26年7月">26年7月</label><label><input type="checkbox" value="26年6月">26年6月</label><label><input type="checkbox" value="26年5月">26年5月</label><label><input type="checkbox" value="26年4月">26年4月</label><label><input type="checkbox" value="26年3月">26年3月</label><label><input type="checkbox" value="26年2月">26年2月</label><label><input type="checkbox" value="26年1月">26年1月</label></div><div style="padding: 6px 10px; border-top: 1px solid rgb(224, 224, 224); text-align: center; background: rgb(255, 255, 255);"><button onclick="event.stopPropagation();MS[&#39;Month&#39;].drop.classList.remove(&#39;show&#39;)" style="padding:3px 20px;font-size:12px;border-radius:3px;border:1px solid #d9d9d9;background:#fff;cursor:pointer;color:#333;">关闭</button></div></div></div>
+  <span class="sep">|</span>
+  <label>期数</label><div class="ms-wrap" id="msPeriod"><div class="ms-btn has-sel">汇总 <span class="arrow">▼</span></div><div class="ms-drop" id="dropPeriod"><div class="ms-actions"><label class="ms-all"><input type="checkbox" onchange="toggleAll(&#39;Period&#39;,this.checked)"> 全选</label></div><div class="ms-agg"><label><input type="checkbox" onchange="toggleAgg(&#39;Period&#39;,this.checked)"> 汇总</label></div><div class="ms-items"><label><input type="checkbox" value="77期">77期</label><label><input type="checkbox" value="76期">76期</label><label><input type="checkbox" value="75期">75期</label><label><input type="checkbox" value="74期">74期</label><label><input type="checkbox" value="73期">73期</label><label><input type="checkbox" value="72期">72期</label><label><input type="checkbox" value="71期">71期</label><label><input type="checkbox" value="70期">70期</label><label><input type="checkbox" value="69期">69期</label><label><input type="checkbox" value="68期">68期</label><label><input type="checkbox" value="67期">67期</label><label><input type="checkbox" value="66期">66期</label><label><input type="checkbox" value="65期">65期</label><label><input type="checkbox" value="64期">64期</label><label><input type="checkbox" value="63期">63期</label><label><input type="checkbox" value="62期">62期</label><label><input type="checkbox" value="61期">61期</label><label><input type="checkbox" value="60期">60期</label><label><input type="checkbox" value="59期">59期</label><label><input type="checkbox" value="58期">58期</label><label><input type="checkbox" value="57期">57期</label><label><input type="checkbox" value="56期">56期</label><label><input type="checkbox" value="55期">55期</label><label><input type="checkbox" value="54期">54期</label><label><input type="checkbox" value="53期A">53期A</label><label><input type="checkbox" value="53期">53期</label><label><input type="checkbox" value="50期">50期</label></div><div style="padding: 6px 10px; border-top: 1px solid rgb(224, 224, 224); text-align: center; background: rgb(255, 255, 255);"><button onclick="event.stopPropagation();MS[&#39;Period&#39;].drop.classList.remove(&#39;show&#39;)" style="padding:3px 20px;font-size:12px;border-radius:3px;border:1px solid #d9d9d9;background:#fff;cursor:pointer;color:#333;">关闭</button></div></div></div>
+  <span class="sep">|</span>
+  <label>主体</label><div class="ms-wrap" id="msSubject"><div class="ms-btn">全部 <span class="arrow">▼</span></div><div class="ms-drop" id="dropSubject"><div class="ms-actions"><label class="ms-all"><input type="checkbox" onchange="toggleAll(&#39;Subject&#39;,this.checked)"> 全选</label></div><div class="ms-agg"><label><input type="checkbox" onchange="toggleAgg(&#39;Subject&#39;,this.checked)"> 汇总</label></div><div class="ms-items"><label><input type="checkbox" value="开源">开源</label><label><input type="checkbox" value="智宇">智宇</label></div><div style="padding: 6px 10px; border-top: 1px solid rgb(224, 224, 224); text-align: center; background: rgb(255, 255, 255);"><button onclick="event.stopPropagation();MS[&#39;Subject&#39;].drop.classList.remove(&#39;show&#39;)" style="padding:3px 20px;font-size:12px;border-radius:3px;border:1px solid #d9d9d9;background:#fff;cursor:pointer;color:#333;">关闭</button></div></div></div>
+  <span class="sep">|</span>
+  <label>小组</label><div class="ms-wrap" id="msGroup"><div class="ms-btn has-sel">汇总 <span class="arrow">▼</span></div><div class="ms-drop" id="dropGroup"><div class="ms-actions"><label class="ms-all"><input type="checkbox" onchange="toggleAll(&#39;Group&#39;,this.checked)"> 全选</label></div><div class="ms-agg"><label><input type="checkbox" onchange="toggleAgg(&#39;Group&#39;,this.checked)"> 汇总</label></div><div class="ms-items"><label><input type="checkbox" value="钞能力组">钞能力组</label><label><input type="checkbox" value="芳伟组">芳伟组</label><label><input type="checkbox" value="久發灵">久發灵</label><label><input type="checkbox" value="未知">未知</label><label><input type="checkbox" value="星辰耐思">星辰耐思</label><label><input type="checkbox" value="运「赢」家组">运「赢」家组</label></div><div style="padding: 6px 10px; border-top: 1px solid rgb(224, 224, 224); text-align: center; background: rgb(255, 255, 255);"><button onclick="event.stopPropagation();MS[&#39;Group&#39;].drop.classList.remove(&#39;show&#39;)" style="padding:3px 20px;font-size:12px;border-radius:3px;border:1px solid #d9d9d9;background:#fff;cursor:pointer;color:#333;">关闭</button></div></div></div>
+  <span class="sep">|</span>
+  <label>运营</label><div class="ms-wrap" id="msOperator"><div class="ms-btn has-sel" style="opacity: 0.4; pointer-events: none;">汇总 <span class="arrow">▼</span></div><div class="ms-drop" id="dropOperator"><div class="ms-actions"><label class="ms-all"><input type="checkbox" onchange="toggleAll(&#39;Operator&#39;,this.checked)"> 全选</label></div><div class="ms-agg"><label><input type="checkbox" onchange="toggleAgg(&#39;Operator&#39;,this.checked)"> 汇总</label></div><div class="ms-items"><label><input type="checkbox" value="曾晓旭">曾晓旭</label><label><input type="checkbox" value="曾尧">曾尧</label><label><input type="checkbox" value="曾志海">曾志海</label><label><input type="checkbox" value="陈金">陈金</label><label><input type="checkbox" value="陈莉雯">陈莉雯</label><label><input type="checkbox" value="陈晓婷">陈晓婷</label><label><input type="checkbox" value="邓秀富">邓秀富</label><label><input type="checkbox" value="耿子涵">耿子涵</label><label><input type="checkbox" value="谷越">谷越</label><label><input type="checkbox" value="郭嘉嘉">郭嘉嘉</label><label><input type="checkbox" value="郭谋之">郭谋之</label><label><input type="checkbox" value="郭奕锋">郭奕锋</label><label><input type="checkbox" value="胡晶晶">胡晶晶</label><label><input type="checkbox" value="黄任薇">黄任薇</label><label><input type="checkbox" value="黄思琦">黄思琦</label><label><input type="checkbox" value="江芳伟">江芳伟</label><label><input type="checkbox" value="雷楠枫">雷楠枫</label><label><input type="checkbox" value="离职转移">离职转移</label><label><input type="checkbox" value="李峰民">李峰民</label><label><input type="checkbox" value="李华龙">李华龙</label><label><input type="checkbox" value="李嘉欣">李嘉欣</label><label><input type="checkbox" value="李静欣">李静欣</label><label><input type="checkbox" value="李兴楠">李兴楠</label><label><input type="checkbox" value="李玉婷">李玉婷</label><label><input type="checkbox" value="梁干德">梁干德</label><label><input type="checkbox" value="梁恒彬">梁恒彬</label><label><input type="checkbox" value="林宇飞">林宇飞</label><label><input type="checkbox" value="林振天">林振天</label><label><input type="checkbox" value="凌成">凌成</label><label><input type="checkbox" value="刘健">刘健</label><label><input type="checkbox" value="刘蔓">刘蔓</label><label><input type="checkbox" value="刘智鸿">刘智鸿</label><label><input type="checkbox" value="刘中豪">刘中豪</label><label><input type="checkbox" value="卢成彬">卢成彬</label><label><input type="checkbox" value="卢玉珠">卢玉珠</label><label><input type="checkbox" value="卢志立">卢志立</label><label><input type="checkbox" value="罗慧">罗慧</label><label><input type="checkbox" value="罗嘉鑫">罗嘉鑫</label><label><input type="checkbox" value="罗振翔">罗振翔</label><label><input type="checkbox" value="马文冲">马文冲</label><label><input type="checkbox" value="莫文怡">莫文怡</label><label><input type="checkbox" value="潘柏俊">潘柏俊</label><label><input type="checkbox" value="邱礼臻">邱礼臻</label><label><input type="checkbox" value="石琳">石琳</label><label><input type="checkbox" value="苏宏先">苏宏先</label><label><input type="checkbox" value="唐湘莹">唐湘莹</label><label><input type="checkbox" value="汪晨">汪晨</label><label><input type="checkbox" value="王宇">王宇</label><label><input type="checkbox" value="吴俊杰">吴俊杰</label><label><input type="checkbox" value="吴晓雪">吴晓雪</label><label><input type="checkbox" value="徐怀坤">徐怀坤</label><label><input type="checkbox" value="薛晶">薛晶</label><label><input type="checkbox" value="杨德鑫">杨德鑫</label><label><input type="checkbox" value="杨光亮">杨光亮</label><label><input type="checkbox" value="杨香香">杨香香</label><label><input type="checkbox" value="杨心茹">杨心茹</label><label><input type="checkbox" value="游有为">游有为</label><label><input type="checkbox" value="张旭红">张旭红</label><label><input type="checkbox" value="赵琪">赵琪</label><label><input type="checkbox" value="钟雪婷">钟雪婷</label><label><input type="checkbox" value="周灿鑫">周灿鑫</label><label><input type="checkbox" value="周龙金">周龙金</label><label><input type="checkbox" value="周涛">周涛</label><label><input type="checkbox" value="周伟">周伟</label><label><input type="checkbox" value="庄启伟">庄启伟</label><label><input type="checkbox" value="邹晨">邹晨</label></div><div style="padding: 6px 10px; border-top: 1px solid rgb(224, 224, 224); text-align: center; background: rgb(255, 255, 255);"><button onclick="event.stopPropagation();MS[&#39;Operator&#39;].drop.classList.remove(&#39;show&#39;)" style="padding:3px 20px;font-size:12px;border-radius:3px;border:1px solid #d9d9d9;background:#fff;cursor:pointer;color:#333;">关闭</button></div></div></div>
+  <span class="sep">|</span>
+  <label>渠道</label><div class="ms-wrap" id="msChannel"><div class="ms-btn">全部 <span class="arrow">▼</span></div><div class="ms-drop" id="dropChannel"><div class="ms-actions"><label class="ms-all"><input type="checkbox" onchange="toggleAll(&#39;Channel&#39;,this.checked)"> 全选</label></div><div class="ms-agg"><label><input type="checkbox" onchange="toggleAgg(&#39;Channel&#39;,this.checked)"> 汇总</label></div><div class="ms-items"><label><input type="checkbox" value="百度">百度</label><label><input type="checkbox" value="陈路小红书">陈路小红书</label><label><input type="checkbox" value="春浩0元表单">春浩0元表单</label><label><input type="checkbox" value="春浩百度">春浩百度</label><label><input type="checkbox" value="春浩抖音AD">春浩抖音AD</label><label><input type="checkbox" value="春浩快手">春浩快手</label><label><input type="checkbox" value="春浩小红书">春浩小红书</label><label><input type="checkbox" value="春浩ADQ表单">春浩ADQ表单</label><label><input type="checkbox" value="春浩ADQ直购">春浩ADQ直购</label><label><input type="checkbox" value="彭总抖音AD">彭总抖音AD</label><label><input type="checkbox" value="彭总ADQ表单">彭总ADQ表单</label><label><input type="checkbox" value="书单粉">书单粉</label><label><input type="checkbox" value="微信豆">微信豆</label><label><input type="checkbox" value="未匹配">未匹配</label><label><input type="checkbox" value="郑总小红书">郑总小红书</label><label><input type="checkbox" value="重复标签">重复标签</label><label><input type="checkbox" value="转介绍">转介绍</label></div><div style="padding: 6px 10px; border-top: 1px solid rgb(224, 224, 224); text-align: center; background: rgb(255, 255, 255);"><button onclick="event.stopPropagation();MS[&#39;Channel&#39;].drop.classList.remove(&#39;show&#39;)" style="padding:3px 20px;font-size:12px;border-radius:3px;border:1px solid #d9d9d9;background:#fff;cursor:pointer;color:#333;">关闭</button></div></div></div>
+  <button onclick="applyFilters()">🔍 查询</button>
+  <button class="reset" onclick="resetFilters()">↺ 重置</button>
+</div>
+<div style="padding:6px 24px;display:flex;gap:8px;flex-wrap:wrap;background:#fff;border-bottom:1px solid #e8e8e8;">
+  <span style="font-size:12px;color:#999;line-height:24px;">维度切换：</span>
+  <button onclick="dimSwitch(0)" style="padding:3px 10px;font-size:12px;border:1px solid #d9d9d9;border-radius:3px;background:#fff;cursor:pointer;">月份维度</button>
+  <button onclick="dimSwitch(2)" style="padding:3px 10px;font-size:12px;border:1px solid #d9d9d9;border-radius:3px;background:#fff;cursor:pointer;">主体维度</button>
+  <button onclick="dimSwitch(3)" style="padding:3px 10px;font-size:12px;border:1px solid #d9d9d9;border-radius:3px;background:#fff;cursor:pointer;">小组维度</button>
+  <button onclick="dimSwitch(4)" style="padding:3px 10px;font-size:12px;border:1px solid #d9d9d9;border-radius:3px;background:#fff;cursor:pointer;">运营维度</button>
+  <button onclick="dimSwitch(5)" style="padding:3px 10px;font-size:12px;border:1px solid #d9d9d9;border-radius:3px;background:#fff;cursor:pointer;">渠道维度</button>
+
+<div class="summary" id="summaryCards">
+  <div class="card abs"><div class="label">📋 授权数</div><div class="value" id="cardAuth">246,583</div><div class="note">流量入口</div></div>
+  <div class="card abs"><div class="label">➕ 添加数</div><div class="value" id="cardAdd">229,607</div><div class="note">企业微信添加</div></div>
+  <div class="card rate"><div class="label">添加率</div><div class="value" id="cardR1">93.1%</div><div class="note">添加/授权</div></div>
+  <div class="card rate"><div class="label">开营前流失率</div><div class="value" id="cardR2">3.2%</div><div class="note">流失/添加</div></div>
+  <div class="card rate"><div class="label">问卷率</div><div class="value" id="cardR3">71.4%</div><div class="note">问卷/添加</div></div>
+  <div class="card rate"><div class="label">进群率</div><div class="value" id="cardR4">79.4%</div><div class="note">进群/添加</div></div>
+  <div class="card rate"><div class="label">发起率</div><div class="value" id="cardR5">9.7%</div><div class="note">发起支付/添加</div></div>
+  <div class="card rate"><div class="label">总转化率</div><div class="value" id="cardR6">4.1%</div><div class="note">(当期+往期)/授权</div></div>
+  <div class="card rate"><div class="label">订单成交率</div><div class="value" id="cardR7">43.9%</div><div class="note">当期/发起</div></div>
+  <div class="card rate"><div class="label">退款率</div><div class="value" id="cardR8">12.5%</div><div class="note">退款/当期</div></div>
+</div>
+
+<div class="table-wrap">
+  <div class="table-toolbar"><h3>📋 明细数据 <span class="table-info" id="tableInfo">共 145 条</span> <span style="position:relative;display:inline-block"><button class="col-picker-btn df-btn" onclick="toggleDetailFilter(event)">🔽 明细筛选</button><div id="detailFilter" style="display:none;position:absolute;top:100%;left:0;margin-top:4px;background:#fff;border:1px solid #d9d9d9;border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,.12);z-index:50;padding:10px 12px;min-width:280px"></div></span></h3><div style="display:flex;align-items:center;gap:6px;"><select id="presetCols" onchange="applyPreset()" style="padding:4px 8px;border:1px solid #d9d9d9;border-radius:4px;font-size:12px;"><option value="all">全部</option><option value="flow">流量数据</option><option value="live">直播数据</option><option value="conv">转化数据</option></select><button class="col-picker-btn" onclick="openColPicker()">⚙️ 设置展示字段</button><button class="col-picker-btn" onclick="resetColOrder()">↺ 重置字段</button></div></div>
+  <div class="table-scroll">
+    <table><thead id="tableHead"><tr><th class="sticky-left" style="left: 0px;">运营期数</th><th class="sticky-left" style="left: 66px;">运营月份</th><th class="sticky-left" style="left: 139px;">主体</th><th class="sticky-left" style="left: 187px;">小组</th><th class="sticky-left" style="left: 227px;">运营</th><th class="sticky-left" style="left: 267px;">渠道来源</th><th class="sticky-left sticky-last sortable" onclick="sortBy(&#39;授权数&#39;)" style="left: 375px;">授权数</th><th class="sortable draggable" draggable="true" data-key="发起率" onclick="sortBy(&#39;发起率&#39;)" ondragstart="onDS(event)" ondragover="onDO(event)" ondragleave="onDL(event)" ondrop="onDD(event)" ondragend="onDE(event)">发起率</th><th class="sortable draggable" draggable="true" data-key="总转化率" onclick="sortBy(&#39;总转化率&#39;)" ondragstart="onDS(event)" ondragover="onDO(event)" ondragleave="onDL(event)" ondrop="onDD(event)" ondragend="onDE(event)">总转化率</th><th class="sortable draggable" draggable="true" data-key="当期转化率" onclick="sortBy(&#39;当期转化率&#39;)" ondragstart="onDS(event)" ondragover="onDO(event)" ondragleave="onDL(event)" ondrop="onDD(event)" ondragend="onDE(event)">当期转化率</th><th class="sortable draggable" draggable="true" data-key="往期转化率" onclick="sortBy(&#39;往期转化率&#39;)" ondragstart="onDS(event)" ondragover="onDO(event)" ondragleave="onDL(event)" ondrop="onDD(event)" ondragend="onDE(event)">往期转化率</th><th class="sortable draggable" draggable="true" data-key="订单成交率" onclick="sortBy(&#39;订单成交率&#39;)" ondragstart="onDS(event)" ondragover="onDO(event)" ondragleave="onDL(event)" ondrop="onDD(event)" ondragend="onDE(event)">订单成交率</th><th class="sortable draggable" draggable="true" data-key="退款率" onclick="sortBy(&#39;退款率&#39;)" ondragstart="onDS(event)" ondragover="onDO(event)" ondragleave="onDL(event)" ondrop="onDD(event)" ondragend="onDE(event)">退款率</th></tr></thead><tbody id="tableBody"><tr><td class="sticky-left" style="left: 0px;"></td><td class="sticky-left" style="left: 66px;">26年7月</td><td class="sticky-left" style="left: 139px;">智宇</td><td class="sticky-left" style="left: 187px;"></td><td class="sticky-left" style="left: 227px;"></td><td class="sticky-left" style="left: 267px;">百度</td><td class="sticky-left sticky-last" style="left: 375px;">3671</td><td class="">11.4%</td><td class="">4.2%</td><td class="">4.6%</td><td class="">0.1%</td><td class="">40.1%</td><td class="">6.0%</td></tr><tr><td class="sticky-left" style="left: 0px;"></td><td class="sticky-left" style="left: 66px;">26年7月</td><td class="sticky-left" style="left: 139px;">智宇</td><td class="sticky-left" style="left: 187px;"></td><td class="sticky-left" style="left: 227px;"></td><td class="sticky-left" style="left: 267px;">春浩ADQ表单</td><td class="sticky-left sticky-last" style="left: 375px;">1149</td><td class="">9.8%</td><td class="">3.4%</td><td class="">3.4%</td><td class="">0.1%</td><td class="">35.2%</td><td class="">2.6%</td></tr><tr><td class="sticky-left" style="left: 0px;"></td><td class="sticky-left" style="left: 66px;">26年7月</td><td class="sticky-left" style="left: 139px;">智宇</td><td class="sticky-left" style="left: 187px;"></td><td class="sticky-left" style="left: 227px;"></td><td class="sticky-left" style="left: 267px;">春浩ADQ直购</td><td class="sticky-left sticky-last" style="left: 375px;">2542</td><td class="">9.0%</td><td class="">3.1%</td><td class="">3.3%</td><td class="">0.2%</td><td class="">36.9%</td><td class="">4.0%</td></tr><tr><td class="sticky-left" style="left: 0px;"></td><td class="sticky-left" style="left: 66px;">26年7月</td><td class="sticky-left" style="left: 139px;">智宇</td><td class="sticky-left" style="left: 187px;"></td><td class="sticky-left" style="left: 227px;"></td><td class="sticky-left" style="left: 267px;">彭总ADQ表单</td><td class="sticky-left sticky-last" style="left: 375px;">9098</td><td class="">7.3%</td><td class="">3.0%</td><td class="">2.9%</td><td class="">0.2%</td><td class="">39.3%</td><td class="">3.1%</td></tr><tr><td class="sticky-left" style="left: 0px;"></td><td class="sticky-left" style="left: 66px;">26年7月</td><td class="sticky-left" style="left: 139px;">智宇</td><td class="sticky-left" style="left: 187px;"></td><td class="sticky-left" style="left: 227px;"></td><td class="sticky-left" style="left: 267px;">微信豆</td><td class="sticky-left sticky-last" style="left: 375px;">5570</td><td class="">8.4%</td><td class="">3.2%</td><td class="">3.5%</td><td class="">0.1%</td><td class="">41.6%</td><td class="">7.4%</td></tr><tr><td class="sticky-left" style="left: 0px;"></td><td class="sticky-left" style="left: 66px;">26年7月</td><td class="sticky-left" style="left: 139px;">开源</td><td class="sticky-left" style="left: 187px;"></td><td class="sticky-left" style="left: 227px;"></td><td class="sticky-left" style="left: 267px;">百度</td><td class="sticky-left sticky-last" style="left: 375px;">4900</td><td class="">10.2%</td><td class="">3.6%</td><td class="">4.1%</td><td class="">0.0%</td><td class="">39.8%</td><td class="">6.4%</td></tr><tr><td class="sticky-left" style="left: 0px;"></td><td class="sticky-left" style="left: 66px;">26年7月</td><td class="sticky-left" style="left: 139px;">开源</td><td class="sticky-left" style="left: 187px;"></td><td class="sticky-left" style="left: 227px;"></td><td class="sticky-left" style="left: 267px;">陈路小红书</td><td class="sticky-left sticky-last" style="left: 375px;">4002</td><td class="">9.9%</td><td class="">3.8%</td><td class="">4.7%</td><td class="">0.1%</td><td class="">47.8%</td><td class="">6.6%</td></tr><tr><td class="sticky-left" style="left: 0px;"></td><td class="sticky-left" style="left: 66px;">26年7月</td><td class="sticky-left" style="left: 139px;">开源</td><td class="sticky-left" style="left: 187px;"></td><td class="sticky-left" style="left: 227px;"></td><td class="sticky-left" style="left: 267px;">春浩ADQ表单</td><td class="sticky-left sticky-last" style="left: 375px;">3380</td><td class="">8.2%</td><td class="">3.2%</td><td class="">3.3%</td><td class="">0.2%</td><td class="">39.8%</td><td class="">12.6%</td></tr><tr><td class="sticky-left" style="left: 0px;"></td><td class="sticky-left" style="left: 66px;">26年7月</td><td class="sticky-left" style="left: 139px;">开源</td><td class="sticky-left" style="left: 187px;"></td><td class="sticky-left" style="left: 227px;"></td><td class="sticky-left" style="left: 267px;">春浩ADQ直购</td><td class="sticky-left sticky-last" style="left: 375px;">1906</td><td class="">9.2%</td><td class="">3.6%</td><td class="">4.1%</td><td class="">0.3%</td><td class="">44.4%</td><td class="">6.3%</td></tr><tr><td class="sticky-left" style="left: 0px;"></td><td class="sticky-left" style="left: 66px;">26年7月</td><td class="sticky-left" style="left: 139px;">开源</td><td class="sticky-left" style="left: 187px;"></td><td class="sticky-left" style="left: 227px;"></td><td class="sticky-left" style="left: 267px;">春浩百度</td><td class="sticky-left sticky-last" style="left: 375px;">644</td><td class="">10.5%</td><td class="">4.3%</td><td class="">5.8%</td><td class="">0.0%</td><td class="">54.9%</td><td class="">3.6%</td></tr><tr><td class="sticky-left" style="left: 0px;"></td><td class="sticky-left" style="left: 66px;">26年7月</td><td class="sticky-left" style="left: 139px;">开源</td><td class="sticky-left" style="left: 187px;"></td><td class="sticky-left" style="left: 227px;"></td><td class="sticky-left" style="left: 267px;">春浩小红书</td><td class="sticky-left sticky-last" style="left: 375px;">145</td><td class="">10.3%</td><td class="">10.3%</td><td class="">7.9%</td><td class="">1.2%</td><td class="">76.5%</td><td class="">7.7%</td></tr><tr><td class="sticky-left" style="left: 0px;"></td><td class="sticky-left" style="left: 66px;">26年7月</td><td class="sticky-left" style="left: 139px;">开源</td><td class="sticky-left" style="left: 187px;"></td><td class="sticky-left" style="left: 227px;"></td><td class="sticky-left" style="left: 267px;">彭总ADQ表单</td><td class="sticky-left sticky-last" style="left: 375px;">14345</td><td class="">6.4%</td><td class="">2.3%</td><td class="">2.4%</td><td class="">0.1%</td><td class="">36.9%</td><td class="">6.9%</td></tr><tr><td class="sticky-left" style="left: 0px;"></td><td class="sticky-left" style="left: 66px;">26年7月</td><td class="sticky-left" style="left: 139px;">开源</td><td class="sticky-left" style="left: 187px;"></td><td class="sticky-left" style="left: 227px;"></td><td class="sticky-left" style="left: 267px;">彭总抖音AD</td><td class="sticky-left sticky-last" style="left: 375px;">3172</td><td class="">6.1%</td><td class="">1.6%</td><td class="">1.7%</td><td class="">0.1%</td><td class="">27.8%</td><td class="">24.0%</td></tr><tr><td class="sticky-left" style="left: 0px;"></td><td class="sticky-left" style="left: 66px;">26年7月</td><td class="sticky-left" style="left: 139px;">开源</td><td class="sticky-left" style="left: 187px;"></td><td class="sticky-left" style="left: 227px;"></td><td class="sticky-left" style="left: 267px;">春浩抖音AD</td><td class="sticky-left sticky-last" style="left: 375px;">393</td><td class="">5.9%</td><td class="">2.3%</td><td class="">2.3%</td><td class="">0.0%</td><td class="">39.1%</td><td class="">11.1%</td></tr><tr><td class="sticky-left" style="left: 0px;"></td><td class="sticky-left" style="left: 66px;">26年7月</td><td class="sticky-left" style="left: 139px;">开源</td><td class="sticky-left" style="left: 187px;"></td><td class="sticky-left" style="left: 227px;"></td><td class="sticky-left" style="left: 267px;">微信豆</td><td class="sticky-left sticky-last" style="left: 375px;">3155</td><td class="">7.3%</td><td class="">2.8%</td><td class="">3.3%</td><td class="">0.2%</td><td class="">45.4%</td><td class="">8.4%</td></tr><tr><td class="sticky-left" style="left: 0px;"></td><td class="sticky-left" style="left: 66px;">26年7月</td><td class="sticky-left" style="left: 139px;">开源</td><td class="sticky-left" style="left: 187px;"></td><td class="sticky-left" style="left: 227px;"></td><td class="sticky-left" style="left: 267px;">转介绍</td><td class="sticky-left sticky-last" style="left: 375px;">0</td><td class="">无</td><td class="">无</td><td class="">无</td><td class="">无</td><td class="">无</td><td class="">20.0%</td></tr><tr><td class="sticky-left" style="left: 0px;"></td><td class="sticky-left" style="left: 66px;">26年7月</td><td class="sticky-left" style="left: 139px;">智宇</td><td class="sticky-left" style="left: 187px;"></td><td class="sticky-left" style="left: 227px;"></td><td class="sticky-left" style="left: 267px;">重复标签</td><td class="sticky-left sticky-last" style="left: 375px;">0</td><td class="">3.3%</td><td class="">无</td><td class="">0.0%</td><td class="">0.0%</td><td class="">0.0%</td><td class="">0</td></tr><tr><td class="sticky-left" style="left: 0px;"></td><td class="sticky-left" style="left: 66px;">26年7月</td><td class="sticky-left" style="left: 139px;">智宇</td><td class="sticky-left" style="left: 187px;"></td><td class="sticky-left" style="left: 227px;"></td><td class="sticky-left" style="left: 267px;">未匹配</td><td class="sticky-left sticky-last" style="left: 375px;">0</td><td class="">19.4%</td><td class="">无</td><td class="">0.0%</td><td class="">0.0%</td><td class="">0.0%</td><td class="">0</td></tr><tr><td class="sticky-left" style="left: 0px;"></td><td class="sticky-left" style="left: 66px;">26年7月</td><td class="sticky-left" style="left: 139px;">开源</td><td class="sticky-left" style="left: 187px;"></td><td class="sticky-left" style="left: 227px;"></td><td class="sticky-left" style="left: 267px;">重复标签</td><td class="sticky-left sticky-last" style="left: 375px;">0</td><td class="">5.2%</td><td class="">无</td><td class="">0.0%</td><td class="">0.0%</td><td class="">0.0%</td><td class="">0</td></tr><tr><td class="sticky-left" style="left: 0px;"></td><td class="sticky-left" style="left: 66px;">26年7月</td><td class="sticky-left" style="left: 139px;">开源</td><td class="sticky-left" style="left: 187px;"></td><td class="sticky-left" style="left: 227px;"></td><td class="sticky-left" style="left: 267px;">未匹配</td><td class="sticky-left sticky-last" style="left: 375px;">0</td><td class="">7.7%</td><td class="">无</td><td class="">0.0%</td><td class="">0.0%</td><td class="">0.0%</td><td class="">0</td></tr><tr><td class="sticky-left" style="left: 0px;"></td><td class="sticky-left" style="left: 66px;">26年7月</td><td class="sticky-left" style="left: 139px;">开源</td><td class="sticky-left" style="left: 187px;"></td><td class="sticky-left" style="left: 227px;"></td><td class="sticky-left" style="left: 267px;">郑总小红书</td><td class="sticky-left sticky-last" style="left: 375px;">23</td><td class="">4.8%</td><td class="">4.3%</td><td class="">4.8%</td><td class="">0.0%</td><td class="">100.0%</td><td class="">0.0%</td></tr><tr><td class="sticky-left" style="left: 0px;"></td><td class="sticky-left" style="left: 66px;">26年7月</td><td class="sticky-left" style="left: 139px;">智宇</td><td class="sticky-left" style="left: 187px;"></td><td class="sticky-left" style="left: 227px;"></td><td class="sticky-left" style="left: 267px;">春浩抖音AD</td><td class="sticky-left sticky-last" style="left: 375px;">0</td><td class="">无</td><td class="">无</td><td class="">无</td><td class="">无</td><td class="">无</td><td class="">0</td></tr><tr><td class="sticky-left" style="left: 0px;"></td><td class="sticky-left" style="left: 66px;">26年6月</td><td class="sticky-left" style="left: 139px;">智宇</td><td class="sticky-left" style="left: 187px;"></td><td class="sticky-left" style="left: 227px;"></td><td class="sticky-left" style="left: 267px;">百度</td><td class="sticky-left sticky-last" style="left: 375px;">3459</td><td class="">12.8%</td><td class="">5.2%</td><td class="">5.4%</td><td class="">0.2%</td><td class="">41.8%</td><td class="">14.4%</td></tr><tr><td class="sticky-left" style="left: 0px;"></td><td class="sticky-left" style="left: 66px;">26年6月</td><td class="sticky-left" style="left: 139px;">智宇</td><td class="sticky-left" style="left: 187px;"></td><td class="sticky-left" style="left: 227px;"></td><td class="sticky-left" style="left: 267px;">春浩ADQ直购</td><td class="sticky-left sticky-last" style="left: 375px;">1836</td><td class="">8.8%</td><td class="">3.4%</td><td class="">4.0%</td><td class="">0.2%</td><td class="">45.4%</td><td class="">15.3%</td></tr><tr><td class="sticky-left" style="left: 0px;"></td><td class="sticky-left" style="left: 66px;">26年6月</td><td class="sticky-left" style="left: 139px;">智宇</td><td class="sticky-left" style="left: 187px;"></td><td class="sticky-left" style="left: 227px;"></td><td class="sticky-left" style="left: 267px;">彭总ADQ表单</td><td class="sticky-left sticky-last" style="left: 375px;">9043</td><td class="">8.5%</td><td class="">3.2%</td><td class="">3.3%</td><td class="">0.1%</td><td class="">38.7%</td><td class="">14.2%</td></tr><tr><td class="sticky-left" style="left: 0px;"></td><td class="sticky-left" style="left: 66px;">26年6月</td><td class="sticky-left" style="left: 139px;">智宇</td><td class="sticky-left" style="left: 187px;"></td><td class="sticky-left" style="left: 227px;"></td><td class="sticky-left" style="left: 267px;">春浩ADQ表单</td><td class="sticky-left sticky-last" style="left: 375px;">657</td><td class="">11.3%</td><td class="">5.6%</td><td class="">5.5%</td><td class="">0.3%</td><td class="">48.6%</td><td class="">14.3%</td></tr><tr><td class="sticky-left" style="left: 0px;"></td><td class="sticky-left" style="left: 66px;">26年6月</td><td class="sticky-left" style="left: 139px;">智宇</td><td class="sticky-left" style="left: 187px;"></td><td class="sticky-left" style="left: 227px;"></td><td class="sticky-left" style="left: 267px;">微信豆</td><td class="sticky-left sticky-last" style="left: 375px;">6455</td><td class="">9.5%</td><td class="">3.9%</td><td class="">4.2%</td><td class="">0.1%</td><td class="">44.7%</td><td class="">17.6%</td></tr><tr><td class="sticky-left" style="left: 0px;"></td><td class="sticky-left" style="left: 66px;">26年6月</td><td class="sticky-left" style="left: 139px;">开源</td><td class="sticky-left" style="left: 187px;"></td><td class="sticky-left" style="left: 227px;"></td><td class="sticky-left" style="left: 267px;">百度</td><td class="sticky-left sticky-last" style="left: 375px;">2912</td><td class="">10.2%</td><td class="">4.0%</td><td class="">4.8%</td><td class="">0.2%</td><td class="">46.5%</td><td class="">15.9%</td></tr><tr><td class="sticky-left" style="left: 0px;"></td><td class="sticky-left" style="left: 66px;">26年6月</td><td class="sticky-left" style="left: 139px;">开源</td><td class="sticky-left" style="left: 187px;"></td><td class="sticky-left" style="left: 227px;"></td><td class="sticky-left" style="left: 267px;">陈路小红书</td><td class="sticky-left sticky-last" style="left: 375px;">3029</td><td class="">10.3%</td><td class="">5.0%</td><td class="">6.7%</td><td class="">0.1%</td><td class="">64.9%</td><td class="">14.2%</td></tr><tr><td class="sticky-left" style="left: 0px;"></td><td class="sticky-left" style="left: 66px;">26年6月</td><td class="sticky-left" style="left: 139px;">开源</td><td class="sticky-left" style="left: 187px;"></td><td class="sticky-left" style="left: 227px;"></td><td class="sticky-left" style="left: 267px;">春浩ADQ表单</td><td class="sticky-left sticky-last" style="left: 375px;">1395</td><td class="">7.0%</td><td class="">4.1%</td><td class="">4.2%</td><td class="">0.1%</td><td class="">60.9%</td><td class="">8.9%</td></tr><tr><td class="sticky-left" style="left: 0px;"></td><td class="sticky-left" style="left: 66px;">26年6月</td><td class="sticky-left" style="left: 139px;">开源</td><td class="sticky-left" style="left: 187px;"></td><td class="sticky-left" style="left: 227px;"></td><td class="sticky-left" style="left: 267px;">春浩百度</td><td class="sticky-left sticky-last" style="left: 375px;">1877</td><td class="">11.3%</td><td class="">3.9%</td><td class="">5.4%</td><td class="">0.1%</td><td class="">48.3%</td><td class="">15.1%</td></tr><tr><td class="sticky-left" style="left: 0px;"></td><td class="sticky-left" style="left: 66px;">26年6月</td><td class="sticky-left" style="left: 139px;">开源</td><td class="sticky-left" style="left: 187px;"></td><td class="sticky-left" style="left: 227px;"></td><td class="sticky-left" style="left: 267px;">春浩小红书</td><td class="sticky-left sticky-last" style="left: 375px;">382</td><td class="">11.6%</td><td class="">7.3%</td><td class="">9.5%</td><td class="">0.7%</td><td class="">81.3%</td><td class="">11.5%</td></tr><tr><td class="sticky-left" style="left: 0px;"></td><td class="sticky-left" style="left: 66px;">26年6月</td><td class="sticky-left" style="left: 139px;">开源</td><td class="sticky-left" style="left: 187px;"></td><td class="sticky-left" style="left: 227px;"></td><td class="sticky-left" style="left: 267px;">彭总ADQ表单</td><td class="sticky-left sticky-last" style="left: 375px;">9458</td><td class="">7.5%</td><td class="">2.9%</td><td class="">3.1%</td><td class="">0.0%</td><td class="">41.8%</td><td class="">13.2%</td></tr><tr><td class="sticky-left" style="left: 0px;"></td><td class="sticky-left" style="left: 66px;">26年6月</td><td class="sticky-left" style="left: 139px;">开源</td><td class="sticky-left" style="left: 187px;"></td><td class="sticky-left" style="left: 227px;"></td><td class="sticky-left" style="left: 267px;">彭总抖音AD</td><td class="sticky-left sticky-last" style="left: 375px;">1694</td><td class="">7.0%</td><td class="">2.7%</td><td class="">2.8%</td><td class="">0.1%</td><td class="">39.6%</td><td class="">6.8%</td></tr><tr><td class="sticky-left" style="left: 0px;"></td><td class="sticky-left" style="left: 66px;">26年6月</td><td class="sticky-left" style="left: 139px;">开源</td><td class="sticky-left" style="left: 187px;"></td><td class="sticky-left" style="left: 227px;"></td><td class="sticky-left" style="left: 267px;">春浩抖音AD</td><td class="sticky-left sticky-last" style="left: 375px;">221</td><td class="">6.3%</td><td class="">3.2%</td><td class="">3.4%</td><td class="">0.0%</td><td class="">53.8%</td><td class="">42.9%</td></tr><tr><td class="sticky-left" style="left: 0px;"></td><td class="sticky-left" style="left: 66px;">26年6月</td><td class="sticky-left" style="left: 139px;">开源</td><td class="sticky-left" style="left: 187px;"></td><td class="sticky-left" style="left: 227px;"></td><td class="sticky-left" style="left: 267px;">春浩ADQ直购</td><td class="sticky-left sticky-last" style="left: 375px;">1040</td><td class="">8.5%</td><td class="">3.3%</td><td class="">4.1%</td><td class="">0.1%</td><td class="">48.5%</td><td class="">12.1%</td></tr><tr><td class="sticky-left" style="left: 0px;"></td><td class="sticky-left" style="left: 66px;">26年6月</td><td class="sticky-left" style="left: 139px;">开源</td><td class="sticky-left" style="left: 187px;"></td><td class="sticky-left" style="left: 227px;"></td><td class="sticky-left" style="left: 267px;">微信豆</td><td class="sticky-left sticky-last" style="left: 375px;">2582</td><td class="">8.4%</td><td class="">3.2%</td><td class="">4.2%</td><td class="">0.2%</td><td class="">49.4%</td><td class="">16.5%</td></tr><tr><td class="sticky-left" style="left: 0px;"></td><td class="sticky-left" style="left: 66px;">26年6月</td><td class="sticky-left" style="left: 139px;">开源</td><td class="sticky-left" style="left: 187px;"></td><td class="sticky-left" style="left: 227px;"></td><td class="sticky-left" style="left: 267px;">转介绍</td><td class="sticky-left sticky-last" style="left: 375px;">0</td><td class="">无</td><td class="">无</td><td class="">无</td><td class="">无</td><td class="">无</td><td class="">28.6%</td></tr><tr><td class="sticky-left" style="left: 0px;"></td><td class="sticky-left" style="left: 66px;">26年6月</td><td class="sticky-left" style="left: 139px;">开源</td><td class="sticky-left" style="left: 187px;"></td><td class="sticky-left" style="left: 227px;"></td><td class="sticky-left" style="left: 267px;">郑总小红书</td><td class="sticky-left sticky-last" style="left: 375px;">22</td><td class="">5.3%</td><td class="">4.5%</td><td class="">5.3%</td><td class="">0.0%</td><td class="">100.0%</td><td class="">0.0%</td></tr><tr><td class="sticky-left" style="left: 0px;"></td><td class="sticky-left" style="left: 66px;">26年6月</td><td class="sticky-left" style="left: 139px;">智宇</td><td class="sticky-left" style="left: 187px;"></td><td class="sticky-left" style="left: 227px;"></td><td class="sticky-left" style="left: 267px;">重复标签</td><td class="sticky-left sticky-last" style="left: 375px;">0</td><td class="">13.2%</td><td class="">无</td><td class="">0.0%</td><td class="">0.0%</td><td class="">0.0%</td><td class="">0</td></tr><tr><td class="sticky-left" style="left: 0px;"></td><td class="sticky-left" style="left: 66px;">26年6月</td><td class="sticky-left" style="left: 139px;">智宇</td><td class="sticky-left" style="left: 187px;"></td><td class="sticky-left" style="left: 227px;"></td><td class="sticky-left" style="left: 267px;">未匹配</td><td class="sticky-left sticky-last" style="left: 375px;">0</td><td class="">4.2%</td><td class="">无</td><td class="">0.0%</td><td class="">0.0%</td><td class="">0.0%</td><td class="">0</td></tr><tr><td class="sticky-left" style="left: 0px;"></td><td class="sticky-left" style="left: 66px;">26年6月</td><td class="sticky-left" style="left: 139px;">开源</td><td class="sticky-left" style="left: 187px;"></td><td class="sticky-left" style="left: 227px;"></td><td class="sticky-left" style="left: 267px;">重复标签</td><td class="sticky-left sticky-last" style="left: 375px;">0</td><td class="">2.2%</td><td class="">无</td><td class="">0.0%</td><td class="">0.0%</td><td class="">0.0%</td><td class="">0</td></tr><tr><td class="sticky-left" style="left: 0px;"></td><td class="sticky-left" style="left: 66px;">26年6月</td><td class="sticky-left" style="left: 139px;">开源</td><td class="sticky-left" style="left: 187px;"></td><td class="sticky-left" style="left: 227px;"></td><td class="sticky-left" style="left: 267px;">未匹配</td><td class="sticky-left sticky-last" style="left: 375px;">2</td><td class="">11.6%</td><td class="">0.0%</td><td class="">0.0%</td><td class="">0.0%</td><td class="">0.0%</td><td class="">0</td></tr><tr><td class="sticky-left" style="left: 0px;"></td><td class="sticky-left" style="left: 66px;">26年5月</td><td class="sticky-left" style="left: 139px;">智宇</td><td class="sticky-left" style="left: 187px;"></td><td class="sticky-left" style="left: 227px;"></td><td class="sticky-left" style="left: 267px;">百度</td><td class="sticky-left sticky-last" style="left: 375px;">4914</td><td class="">14.5%</td><td class="">5.8%</td><td class="">5.8%</td><td class="">0.4%</td><td class="">39.9%</td><td class="">13.9%</td></tr><tr><td class="sticky-left" style="left: 0px;"></td><td class="sticky-left" style="left: 66px;">26年5月</td><td class="sticky-left" style="left: 139px;">智宇</td><td class="sticky-left" style="left: 187px;"></td><td class="sticky-left" style="left: 227px;"></td><td class="sticky-left" style="left: 267px;">春浩ADQ直购</td><td class="sticky-left sticky-last" style="left: 375px;">2174</td><td class="">12.4%</td><td class="">5.7%</td><td class="">6.1%</td><td class="">0.4%</td><td class="">49.1%</td><td class="">11.3%</td></tr><tr><td class="sticky-left" style="left: 0px;"></td><td class="sticky-left" style="left: 66px;">26年5月</td><td class="sticky-left" style="left: 139px;">智宇</td><td class="sticky-left" style="left: 187px;"></td><td class="sticky-left" style="left: 227px;"></td><td class="sticky-left" style="left: 267px;">彭总ADQ表单</td><td class="sticky-left sticky-last" style="left: 375px;">3530</td><td class="">10.2%</td><td class="">4.9%</td><td class="">4.7%</td><td class="">0.3%</td><td class="">46.3%</td><td class="">16.8%</td></tr><tr><td class="sticky-left" style="left: 0px;"></td><td class="sticky-left" style="left: 66px;">26年5月</td><td class="sticky-left" style="left: 139px;">智宇</td><td class="sticky-left" style="left: 187px;"></td><td class="sticky-left" style="left: 227px;"></td><td class="sticky-left" style="left: 267px;">微信豆</td><td class="sticky-left sticky-last" style="left: 375px;">5331</td><td class="">10.7%</td><td class="">4.7%</td><td class="">5.2%</td><td class="">0.1%</td><td class="">48.2%</td><td class="">10.3%</td></tr><tr><td class="sticky-left" style="left: 0px;"></td><td class="sticky-left" style="left: 66px;">26年5月</td><td class="sticky-left" style="left: 139px;">智宇</td><td class="sticky-left" style="left: 187px;"></td><td class="sticky-left" style="left: 227px;"></td><td class="sticky-left" style="left: 267px;">春浩ADQ表单</td><td class="sticky-left sticky-last" style="left: 375px;">765</td><td class="">14.8%</td><td class="">8.0%</td><td class="">7.8%</td><td class="">0.3%</td><td class="">52.7%</td><td class="">15.3%</td></tr><tr><td class="sticky-left" style="left: 0px;"></td><td class="sticky-left" style="left: 66px;">26年5月</td><td class="sticky-left" style="left: 139px;">开源</td><td class="sticky-left" style="left: 187px;"></td><td class="sticky-left" style="left: 227px;"></td><td class="sticky-left" style="left: 267px;">百度</td><td class="sticky-left sticky-last" style="left: 375px;">3214</td><td class="">10.7%</td><td class="">4.4%</td><td class="">5.3%</td><td class="">0.2%</td><td class="">49.4%</td><td class="">15.7%</td></tr><tr><td class="sticky-left" style="left: 0px;"></td><td class="sticky-left" style="left: 66px;">26年5月</td><td class="sticky-left" style="left: 139px;">开源</td><td class="sticky-left" style="left: 187px;"></td><td class="sticky-left" style="left: 227px;"></td><td class="sticky-left" style="left: 267px;">陈路小红书</td><td class="sticky-left sticky-last" style="left: 375px;">2662</td><td class="">11.6%</td><td class="">5.7%</td><td class="">7.4%</td><td class="">0.5%</td><td class="">63.4%</td><td class="">14.1%</td></tr><tr><td class="sticky-left" style="left: 0px;"></td><td class="sticky-left" style="left: 66px;">26年5月</td><td class="sticky-left" style="left: 139px;">开源</td><td class="sticky-left" style="left: 187px;"></td><td class="sticky-left" style="left: 227px;"></td><td class="sticky-left" style="left: 267px;">春浩百度</td><td class="sticky-left sticky-last" style="left: 375px;">3888</td><td class="">10.9%</td><td class="">3.4%</td><td class="">4.6%</td><td class="">0.2%</td><td class="">42.0%</td><td class="">8.7%</td></tr><tr><td class="sticky-left" style="left: 0px;"></td><td class="sticky-left" style="left: 66px;">26年5月</td><td class="sticky-left" style="left: 139px;">开源</td><td class="sticky-left" style="left: 187px;"></td><td class="sticky-left" style="left: 227px;"></td><td class="sticky-left" style="left: 267px;">春浩小红书</td><td class="sticky-left sticky-last" style="left: 375px;">1175</td><td class="">11.9%</td><td class="">5.6%</td><td class="">7.6%</td><td class="">0.2%</td><td class="">64.0%</td><td class="">9.4%</td></tr><tr><td class="sticky-left" style="left: 0px;"></td><td class="sticky-left" style="left: 66px;">26年5月</td><td class="sticky-left" style="left: 139px;">开源</td><td class="sticky-left" style="left: 187px;"></td><td class="sticky-left" style="left: 227px;"></td><td class="sticky-left" style="left: 267px;">彭总ADQ表单</td><td class="sticky-left sticky-last" style="left: 375px;">1739</td><td class="">10.3%</td><td class="">4.4%</td><td class="">4.5%</td><td class="">0.2%</td><td class="">43.5%</td><td class="">15.1%</td></tr><tr><td class="sticky-left" style="left: 0px;"></td><td class="sticky-left" style="left: 66px;">26年5月</td><td class="sticky-left" style="left: 139px;">开源</td><td class="sticky-left" style="left: 187px;"></td><td class="sticky-left" style="left: 227px;"></td><td class="sticky-left" style="left: 267px;">彭总抖音AD</td><td class="sticky-left sticky-last" style="left: 375px;">2737</td><td class="">8.0%</td><td class="">2.7%</td><td class="">2.8%</td><td class="">0.2%</td><td class="">34.5%</td><td class="">14.7%</td></tr><tr><td class="sticky-left" style="left: 0px;"></td><td class="sticky-left" style="left: 66px;">26年5月</td><td class="sticky-left" style="left: 139px;">开源</td><td class="sticky-left" style="left: 187px;"></td><td class="sticky-left" style="left: 227px;"></td><td class="sticky-left" style="left: 267px;">微信豆</td><td class="sticky-left sticky-last" style="left: 375px;">1341</td><td class="">9.6%</td><td class="">4.2%</td><td class="">5.2%</td><td class="">0.2%</td><td class="">54.0%</td><td class="">14.8%</td></tr><tr><td class="sticky-left" style="left: 0px;"></td><td class="sticky-left" style="left: 66px;">26年5月</td><td class="sticky-left" style="left: 139px;">开源</td><td class="sticky-left" style="left: 187px;"></td><td class="sticky-left" style="left: 227px;"></td><td class="sticky-left" style="left: 267px;">春浩抖音AD</td><td class="sticky-left sticky-last" style="left: 375px;">271</td><td class="">6.9%</td><td class="">3.0%</td><td class="">3.2%</td><td class="">0.0%</td><td class="">47.1%</td><td class="">0.0%</td></tr><tr><td class="sticky-left" style="left: 0px;"></td><td class="sticky-left" style="left: 66px;">26年5月</td><td class="sticky-left" style="left: 139px;">开源</td><td class="sticky-left" style="left: 187px;"></td><td class="sticky-left" style="left: 227px;"></td><td class="sticky-left" style="left: 267px;">春浩ADQ表单</td><td class="sticky-left sticky-last" style="left: 375px;">1321</td><td class="">9.5%</td><td class="">4.5%</td><td class="">5.0%</td><td class="">0.3%</td><td class="">52.3%</td><td class="">8.8%</td></tr><tr><td class="sticky-left" style="left: 0px;"></td><td class="sticky-left" style="left: 66px;">26年5月</td><td class="sticky-left" style="left: 139px;">开源</td><td class="sticky-left" style="left: 187px;"></td><td class="sticky-left" style="left: 227px;"></td><td class="sticky-left" style="left: 267px;">春浩ADQ直购</td><td class="sticky-left sticky-last" style="left: 375px;">1108</td><td class="">10.2%</td><td class="">4.5%</td><td class="">5.8%</td><td class="">0.6%</td><td class="">57.0%</td><td class="">11.1%</td></tr><tr><td class="sticky-left" style="left: 0px;"></td><td class="sticky-left" style="left: 66px;">26年5月</td><td class="sticky-left" style="left: 139px;">开源</td><td class="sticky-left" style="left: 187px;"></td><td class="sticky-left" style="left: 227px;"></td><td class="sticky-left" style="left: 267px;">转介绍</td><td class="sticky-left sticky-last" style="left: 375px;">0</td><td class="">无</td><td class="">无</td><td class="">无</td><td class="">无</td><td class="">无</td><td class="">25.0%</td></tr><tr><td class="sticky-left" style="left: 0px;"></td><td class="sticky-left" style="left: 66px;">26年5月</td><td class="sticky-left" style="left: 139px;">开源</td><td class="sticky-left" style="left: 187px;"></td><td class="sticky-left" style="left: 227px;"></td><td class="sticky-left" style="left: 267px;">郑总小红书</td><td class="sticky-left sticky-last" style="left: 375px;">56</td><td class="">21.7%</td><td class="">8.9%</td><td class="">10.9%</td><td class="">0.0%</td><td class="">50.0%</td><td class="">20.0%</td></tr><tr><td class="sticky-left" style="left: 0px;"></td><td class="sticky-left" style="left: 66px;">26年5月</td><td class="sticky-left" style="left: 139px;">智宇</td><td class="sticky-left" style="left: 187px;"></td><td class="sticky-left" style="left: 227px;"></td><td class="sticky-left" style="left: 267px;">重复标签</td><td class="sticky-left sticky-last" style="left: 375px;">0</td><td class="">3.0%</td><td class="">无</td><td class="">0.0%</td><td class="">0.0%</td><td class="">0.0%</td><td class="">0</td></tr><tr><td class="sticky-left" style="left: 0px;"></td><td class="sticky-left" style="left: 66px;">26年5月</td><td class="sticky-left" style="left: 139px;">智宇</td><td class="sticky-left" style="left: 187px;"></td><td class="sticky-left" style="left: 227px;"></td><td class="sticky-left" style="left: 267px;">未匹配</td><td class="sticky-left sticky-last" style="left: 375px;">0</td><td class="">4.3%</td><td class="">无</td><td class="">0.0%</td><td class="">0.0%</td><td class="">0.0%</td><td class="">0</td></tr><tr><td class="sticky-left" style="left: 0px;"></td><td class="sticky-left" style="left: 66px;">26年5月</td><td class="sticky-left" style="left: 139px;">开源</td><td class="sticky-left" style="left: 187px;"></td><td class="sticky-left" style="left: 227px;"></td><td class="sticky-left" style="left: 267px;">重复标签</td><td class="sticky-left sticky-last" style="left: 375px;">0</td><td class="">3.8%</td><td class="">无</td><td class="">0.0%</td><td class="">0.0%</td><td class="">0.0%</td><td class="">0</td></tr><tr><td class="sticky-left" style="left: 0px;"></td><td class="sticky-left" style="left: 66px;">26年5月</td><td class="sticky-left" style="left: 139px;">开源</td><td class="sticky-left" style="left: 187px;"></td><td class="sticky-left" style="left: 227px;"></td><td class="sticky-left" style="left: 267px;">未匹配</td><td class="sticky-left sticky-last" style="left: 375px;">0</td><td class="">7.7%</td><td class="">无</td><td class="">0.0%</td><td class="">0.0%</td><td class="">0.0%</td><td class="">0</td></tr><tr><td class="sticky-left" style="left: 0px;"></td><td class="sticky-left" style="left: 66px;">26年5月</td><td class="sticky-left" style="left: 139px;">智宇</td><td class="sticky-left" style="left: 187px;"></td><td class="sticky-left" style="left: 227px;"></td><td class="sticky-left" style="left: 267px;">转介绍</td><td class="sticky-left sticky-last" style="left: 375px;">0</td><td class="">无</td><td class="">无</td><td class="">无</td><td class="">无</td><td class="">无</td><td class="">0.0%</td></tr><tr><td class="sticky-left" style="left: 0px;"></td><td class="sticky-left" style="left: 66px;">26年5月</td><td class="sticky-left" style="left: 139px;">智宇</td><td class="sticky-left" style="left: 187px;"></td><td class="sticky-left" style="left: 227px;"></td><td class="sticky-left" style="left: 267px;">彭总抖音AD</td><td class="sticky-left sticky-last" style="left: 375px;">0</td><td class="">无</td><td class="">无</td><td class="">无</td><td class="">无</td><td class="">无</td><td class="">0</td></tr><tr><td class="sticky-left" style="left: 0px;"></td><td class="sticky-left" style="left: 66px;">26年4月</td><td class="sticky-left" style="left: 139px;">智宇</td><td class="sticky-left" style="left: 187px;"></td><td class="sticky-left" style="left: 227px;"></td><td class="sticky-left" style="left: 267px;">百度</td><td class="sticky-left sticky-last" style="left: 375px;">6717</td><td class="">13.1%</td><td class="">5.0%</td><td class="">4.9%</td><td class="">0.3%</td><td class="">37.6%</td><td class="">17.6%</td></tr><tr><td class="sticky-left" style="left: 0px;"></td><td class="sticky-left" style="left: 66px;">26年4月</td><td class="sticky-left" style="left: 139px;">智宇</td><td class="sticky-left" style="left: 187px;"></td><td class="sticky-left" style="left: 227px;"></td><td class="sticky-left" style="left: 267px;">春浩ADQ表单</td><td class="sticky-left sticky-last" style="left: 375px;">1307</td><td class="">13.2%</td><td class="">6.2%</td><td class="">5.9%</td><td class="">0.1%</td><td class="">44.6%</td><td class="">11.4%</td></tr><tr><td class="sticky-left" style="left: 0px;"></td><td class="sticky-left" style="left: 66px;">26年4月</td><td class="sticky-left" style="left: 139px;">智宇</td><td class="sticky-left" style="left: 187px;"></td><td class="sticky-left" style="left: 227px;"></td><td class="sticky-left" style="left: 267px;">春浩ADQ直购</td><td class="sticky-left sticky-last" style="left: 375px;">2789</td><td class="">10.9%</td><td class="">5.0%</td><td class="">5.3%</td><td class="">0.5%</td><td class="">48.7%</td><td class="">14.8%</td></tr><tr><td class="sticky-left" style="left: 0px;"></td><td class="sticky-left" style="left: 66px;">26年4月</td><td class="sticky-left" style="left: 139px;">智宇</td><td class="sticky-left" style="left: 187px;"></td><td class="sticky-left" style="left: 227px;"></td><td class="sticky-left" style="left: 267px;">微信豆</td><td class="sticky-left sticky-last" style="left: 375px;">2905</td><td class="">8.8%</td><td class="">3.3%</td><td class="">3.9%</td><td class="">0.4%</td><td class="">44.8%</td><td class="">18.4%</td></tr><tr><td class="sticky-left" style="left: 0px;"></td><td class="sticky-left" style="left: 66px;">26年4月</td><td class="sticky-left" style="left: 139px;">智宇</td><td class="sticky-left" style="left: 187px;"></td><td class="sticky-left" style="left: 227px;"></td><td class="sticky-left" style="left: 267px;">彭总ADQ表单</td><td class="sticky-left sticky-last" style="left: 375px;">5733</td><td class="">10.0%</td><td class="">5.6%</td><td class="">5.4%</td><td class="">0.4%</td><td class="">54.1%</td><td class="">13.0%</td></tr><tr><td class="sticky-left" style="left: 0px;"></td><td class="sticky-left" style="left: 66px;">26年4月</td><td class="sticky-left" style="left: 139px;">智宇</td><td class="sticky-left" style="left: 187px;"></td><td class="sticky-left" style="left: 227px;"></td><td class="sticky-left" style="left: 267px;">重复标签</td><td class="sticky-left sticky-last" style="left: 375px;">0</td><td class="">0.0%</td><td class="">无</td><td class="">0.0%</td><td class="">0.0%</td><td class="">无</td><td class="">0</td></tr><tr><td class="sticky-left" style="left: 0px;"></td><td class="sticky-left" style="left: 66px;">26年4月</td><td class="sticky-left" style="left: 139px;">智宇</td><td class="sticky-left" style="left: 187px;"></td><td class="sticky-left" style="left: 227px;"></td><td class="sticky-left" style="left: 267px;">未匹配</td><td class="sticky-left sticky-last" style="left: 375px;">1</td><td class="">6.7%</td><td class="">0.0%</td><td class="">0.0%</td><td class="">0.0%</td><td class="">0.0%</td><td class="">0</td></tr><tr><td class="sticky-left" style="left: 0px;"></td><td class="sticky-left" style="left: 66px;">26年4月</td><td class="sticky-left" style="left: 139px;">开源</td><td class="sticky-left" style="left: 187px;"></td><td class="sticky-left" style="left: 227px;"></td><td class="sticky-left" style="left: 267px;">百度</td><td class="sticky-left sticky-last" style="left: 375px;">2536</td><td class="">13.2%</td><td class="">5.0%</td><td class="">6.3%</td><td class="">0.1%</td><td class="">47.7%</td><td class="">15.1%</td></tr><tr><td class="sticky-left" style="left: 0px;"></td><td class="sticky-left" style="left: 66px;">26年4月</td><td class="sticky-left" style="left: 139px;">开源</td><td class="sticky-left" style="left: 187px;"></td><td class="sticky-left" style="left: 227px;"></td><td class="sticky-left" style="left: 267px;">陈路小红书</td><td class="sticky-left sticky-last" style="left: 375px;">4456</td><td class="">12.5%</td><td class="">5.6%</td><td class="">7.7%</td><td class="">0.2%</td><td class="">61.6%</td><td class="">10.7%</td></tr><tr><td class="sticky-left" style="left: 0px;"></td><td class="sticky-left" style="left: 66px;">26年4月</td><td class="sticky-left" style="left: 139px;">开源</td><td class="sticky-left" style="left: 187px;"></td><td class="sticky-left" style="left: 227px;"></td><td class="sticky-left" style="left: 267px;">春浩ADQ表单</td><td class="sticky-left sticky-last" style="left: 375px;">2708</td><td class="">8.7%</td><td class="">4.9%</td><td class="">5.6%</td><td class="">0.3%</td><td class="">64.4%</td><td class="">14.4%</td></tr><tr><td class="sticky-left" style="left: 0px;"></td><td class="sticky-left" style="left: 66px;">26年4月</td><td class="sticky-left" style="left: 139px;">开源</td><td class="sticky-left" style="left: 187px;"></td><td class="sticky-left" style="left: 227px;"></td><td class="sticky-left" style="left: 267px;">春浩百度</td><td class="sticky-left sticky-last" style="left: 375px;">4452</td><td class="">11.0%</td><td class="">4.9%</td><td class="">5.5%</td><td class="">0.2%</td><td class="">49.8%</td><td class="">13.3%</td></tr><tr><td class="sticky-left" style="left: 0px;"></td><td class="sticky-left" style="left: 66px;">26年4月</td><td class="sticky-left" style="left: 139px;">开源</td><td class="sticky-left" style="left: 187px;"></td><td class="sticky-left" style="left: 227px;"></td><td class="sticky-left" style="left: 267px;">春浩小红书</td><td class="sticky-left sticky-last" style="left: 375px;">982</td><td class="">11.9%</td><td class="">5.6%</td><td class="">7.4%</td><td class="">0.1%</td><td class="">62.1%</td><td class="">16.7%</td></tr><tr><td class="sticky-left" style="left: 0px;"></td><td class="sticky-left" style="left: 66px;">26年4月</td><td class="sticky-left" style="left: 139px;">开源</td><td class="sticky-left" style="left: 187px;"></td><td class="sticky-left" style="left: 227px;"></td><td class="sticky-left" style="left: 267px;">彭总ADQ表单</td><td class="sticky-left sticky-last" style="left: 375px;">2646</td><td class="">9.1%</td><td class="">4.6%</td><td class="">4.8%</td><td class="">0.2%</td><td class="">52.7%</td><td class="">12.1%</td></tr><tr><td class="sticky-left" style="left: 0px;"></td><td class="sticky-left" style="left: 66px;">26年4月</td><td class="sticky-left" style="left: 139px;">开源</td><td class="sticky-left" style="left: 187px;"></td><td class="sticky-left" style="left: 227px;"></td><td class="sticky-left" style="left: 267px;">彭总抖音AD</td><td class="sticky-left sticky-last" style="left: 375px;">1236</td><td class="">5.6%</td><td class="">2.9%</td><td class="">3.4%</td><td class="">0.0%</td><td class="">60.0%</td><td class="">16.7%</td></tr><tr><td class="sticky-left" style="left: 0px;"></td><td class="sticky-left" style="left: 66px;">26年4月</td><td class="sticky-left" style="left: 139px;">开源</td><td class="sticky-left" style="left: 187px;"></td><td class="sticky-left" style="left: 227px;"></td><td class="sticky-left" style="left: 267px;">微信豆</td><td class="sticky-left sticky-last" style="left: 375px;">1364</td><td class="">10.4%</td><td class="">4.8%</td><td class="">7.5%</td><td class="">0.4%</td><td class="">72.4%</td><td class="">19.0%</td></tr><tr><td class="sticky-left" style="left: 0px;"></td><td class="sticky-left" style="left: 66px;">26年4月</td><td class="sticky-left" style="left: 139px;">开源</td><td class="sticky-left" style="left: 187px;"></td><td class="sticky-left" style="left: 227px;"></td><td class="sticky-left" style="left: 267px;">转介绍</td><td class="sticky-left sticky-last" style="left: 375px;">0</td><td class="">无</td><td class="">无</td><td class="">无</td><td class="">无</td><td class="">无</td><td class="">41.7%</td></tr><tr><td class="sticky-left" style="left: 0px;"></td><td class="sticky-left" style="left: 66px;">26年4月</td><td class="sticky-left" style="left: 139px;">开源</td><td class="sticky-left" style="left: 187px;"></td><td class="sticky-left" style="left: 227px;"></td><td class="sticky-left" style="left: 267px;">春浩ADQ直购</td><td class="sticky-left sticky-last" style="left: 375px;">474</td><td class="">9.2%</td><td class="">5.5%</td><td class="">8.1%</td><td class="">1.1%</td><td class="">88.5%</td><td class="">13.0%</td></tr><tr><td class="sticky-left" style="left: 0px;"></td><td class="sticky-left" style="left: 66px;">26年4月</td><td class="sticky-left" style="left: 139px;">开源</td><td class="sticky-left" style="left: 187px;"></td><td class="sticky-left" style="left: 227px;"></td><td class="sticky-left" style="left: 267px;">春浩抖音AD</td><td class="sticky-left sticky-last" style="left: 375px;">14</td><td class="">0.0%</td><td class="">7.1%</td><td class="">9.1%</td><td class="">0.0%</td><td class="">无</td><td class="">100.0%</td></tr><tr><td class="sticky-left" style="left: 0px;"></td><td class="sticky-left" style="left: 66px;">26年4月</td><td class="sticky-left" style="left: 139px;">开源</td><td class="sticky-left" style="left: 187px;"></td><td class="sticky-left" style="left: 227px;"></td><td class="sticky-left" style="left: 267px;">郑总小红书</td><td class="sticky-left sticky-last" style="left: 375px;">55</td><td class="">25.7%</td><td class="">10.9%</td><td class="">17.1%</td><td class="">0.0%</td><td class="">66.7%</td><td class="">0.0%</td></tr><tr><td class="sticky-left" style="left: 0px;"></td><td class="sticky-left" style="left: 66px;">26年4月</td><td class="sticky-left" style="left: 139px;">开源</td><td class="sticky-left" style="left: 187px;"></td><td class="sticky-left" style="left: 227px;"></td><td class="sticky-left" style="left: 267px;">未匹配</td><td class="sticky-left sticky-last" style="left: 375px;">1</td><td class="">10.8%</td><td class="">0.0%</td><td class="">0.0%</td><td class="">0.0%</td><td class="">0.0%</td><td class="">0</td></tr><tr><td class="sticky-left" style="left: 0px;"></td><td class="sticky-left" style="left: 66px;">26年4月</td><td class="sticky-left" style="left: 139px;">开源</td><td class="sticky-left" style="left: 187px;"></td><td class="sticky-left" style="left: 227px;"></td><td class="sticky-left" style="left: 267px;">重复标签</td><td class="sticky-left sticky-last" style="left: 375px;">0</td><td class="">0.0%</td><td class="">无</td><td class="">0.0%</td><td class="">0.0%</td><td class="">无</td><td class="">0</td></tr><tr><td class="sticky-left" style="left: 0px;"></td><td class="sticky-left" style="left: 66px;">26年4月</td><td class="sticky-left" style="left: 139px;">智宇</td><td class="sticky-left" style="left: 187px;"></td><td class="sticky-left" style="left: 227px;"></td><td class="sticky-left" style="left: 267px;">转介绍</td><td class="sticky-left sticky-last" style="left: 375px;">0</td><td class="">无</td><td class="">无</td><td class="">无</td><td class="">无</td><td class="">无</td><td class="">0.0%</td></tr><tr><td class="sticky-left" style="left: 0px;"></td><td class="sticky-left" style="left: 66px;">26年4月</td><td class="sticky-left" style="left: 139px;">智宇</td><td class="sticky-left" style="left: 187px;"></td><td class="sticky-left" style="left: 227px;"></td><td class="sticky-left" style="left: 267px;">春浩小红书</td><td class="sticky-left sticky-last" style="left: 375px;">0</td><td class="">无</td><td class="">无</td><td class="">无</td><td class="">无</td><td class="">无</td><td class="">0</td></tr><tr><td class="sticky-left" style="left: 0px;"></td><td class="sticky-left" style="left: 66px;">26年3月</td><td class="sticky-left" style="left: 139px;">智宇</td><td class="sticky-left" style="left: 187px;"></td><td class="sticky-left" style="left: 227px;"></td><td class="sticky-left" style="left: 267px;">微信豆</td><td class="sticky-left sticky-last" style="left: 375px;">4113</td><td class="">9.5%</td><td class="">4.2%</td><td class="">4.3%</td><td class="">0.3%</td><td class="">45.9%</td><td class="">12.4%</td></tr><tr><td class="sticky-left" style="left: 0px;"></td><td class="sticky-left" style="left: 66px;">26年3月</td><td class="sticky-left" style="left: 139px;">智宇</td><td class="sticky-left" style="left: 187px;"></td><td class="sticky-left" style="left: 227px;"></td><td class="sticky-left" style="left: 267px;">彭总ADQ表单</td><td class="sticky-left sticky-last" style="left: 375px;">5067</td><td class="">10.2%</td><td class="">4.5%</td><td class="">4.4%</td><td class="">0.1%</td><td class="">43.6%</td><td class="">13.6%</td></tr><tr><td class="sticky-left" style="left: 0px;"></td><td class="sticky-left" style="left: 66px;">26年3月</td><td class="sticky-left" style="left: 139px;">智宇</td><td class="sticky-left" style="left: 187px;"></td><td class="sticky-left" style="left: 227px;"></td><td class="sticky-left" style="left: 267px;">百度</td><td class="sticky-left sticky-last" style="left: 375px;">5432</td><td class="">12.8%</td><td class="">5.6%</td><td class="">5.5%</td><td class="">0.3%</td><td class="">43.3%</td><td class="">12.1%</td></tr><tr><td class="sticky-left" style="left: 0px;"></td><td class="sticky-left" style="left: 66px;">26年3月</td><td class="sticky-left" style="left: 139px;">智宇</td><td class="sticky-left" style="left: 187px;"></td><td class="sticky-left" style="left: 227px;"></td><td class="sticky-left" style="left: 267px;">春浩ADQ直购</td><td class="sticky-left sticky-last" style="left: 375px;">2027</td><td class="">12.5%</td><td class="">4.8%</td><td class="">5.7%</td><td class="">0.4%</td><td class="">45.7%</td><td class="">16.5%</td></tr><tr><td class="sticky-left" style="left: 0px;"></td><td class="sticky-left" style="left: 66px;">26年3月</td><td class="sticky-left" style="left: 139px;">智宇</td><td class="sticky-left" style="left: 187px;"></td><td class="sticky-left" style="left: 227px;"></td><td class="sticky-left" style="left: 267px;">春浩ADQ表单</td><td class="sticky-left sticky-last" style="left: 375px;">1233</td><td class="">12.9%</td><td class="">6.0%</td><td class="">6.0%</td><td class="">0.3%</td><td class="">46.7%</td><td class="">25.4%</td></tr><tr><td class="sticky-left" style="left: 0px;"></td><td class="sticky-left" style="left: 66px;">26年3月</td><td class="sticky-left" style="left: 139px;">开源</td><td class="sticky-left" style="left: 187px;"></td><td class="sticky-left" style="left: 227px;"></td><td class="sticky-left" style="left: 267px;">微信豆</td><td class="sticky-left sticky-last" style="left: 375px;">488</td><td class="">9.6%</td><td class="">5.5%</td><td class="">6.8%</td><td class="">0.8%</td><td class="">70.6%</td><td class="">20.8%</td></tr><tr><td class="sticky-left" style="left: 0px;"></td><td class="sticky-left" style="left: 66px;">26年3月</td><td class="sticky-left" style="left: 139px;">开源</td><td class="sticky-left" style="left: 187px;"></td><td class="sticky-left" style="left: 227px;"></td><td class="sticky-left" style="left: 267px;">春浩ADQ表单</td><td class="sticky-left sticky-last" style="left: 375px;">2067</td><td class="">8.2%</td><td class="">4.1%</td><td class="">4.3%</td><td class="">0.3%</td><td class="">52.3%</td><td class="">16.7%</td></tr><tr><td class="sticky-left" style="left: 0px;"></td><td class="sticky-left" style="left: 66px;">26年3月</td><td class="sticky-left" style="left: 139px;">开源</td><td class="sticky-left" style="left: 187px;"></td><td class="sticky-left" style="left: 227px;"></td><td class="sticky-left" style="left: 267px;">彭总ADQ表单</td><td class="sticky-left sticky-last" style="left: 375px;">2240</td><td class="">9.6%</td><td class="">4.3%</td><td class="">4.3%</td><td class="">0.3%</td><td class="">44.6%</td><td class="">21.1%</td></tr><tr><td class="sticky-left" style="left: 0px;"></td><td class="sticky-left" style="left: 66px;">26年3月</td><td class="sticky-left" style="left: 139px;">开源</td><td class="sticky-left" style="left: 187px;"></td><td class="sticky-left" style="left: 227px;"></td><td class="sticky-left" style="left: 267px;">百度</td><td class="sticky-left sticky-last" style="left: 375px;">2615</td><td class="">9.4%</td><td class="">4.4%</td><td class="">5.2%</td><td class="">0.3%</td><td class="">55.7%</td><td class="">15.7%</td></tr><tr><td class="sticky-left" style="left: 0px;"></td><td class="sticky-left" style="left: 66px;">26年3月</td><td class="sticky-left" style="left: 139px;">开源</td><td class="sticky-left" style="left: 187px;"></td><td class="sticky-left" style="left: 227px;"></td><td class="sticky-left" style="left: 267px;">春浩百度</td><td class="sticky-left sticky-last" style="left: 375px;">2843</td><td class="">11.3%</td><td class="">5.0%</td><td class="">6.7%</td><td class="">0.3%</td><td class="">58.7%</td><td class="">14.1%</td></tr><tr><td class="sticky-left" style="left: 0px;"></td><td class="sticky-left" style="left: 66px;">26年3月</td><td class="sticky-left" style="left: 139px;">开源</td><td class="sticky-left" style="left: 187px;"></td><td class="sticky-left" style="left: 227px;"></td><td class="sticky-left" style="left: 267px;">春浩ADQ直购</td><td class="sticky-left sticky-last" style="left: 375px;">410</td><td class="">9.8%</td><td class="">4.6%</td><td class="">4.6%</td><td class="">1.2%</td><td class="">46.9%</td><td class="">6.7%</td></tr></tbody></table>
+  </div>
+  <div id="loadMoreWrap" style="text-align: center; padding: 10px; display: block;"><button onclick="loadMore()" style="padding:6px 24px;border:1px solid #d9d9d9;border-radius:4px;background:#fff;cursor:pointer;font-size:13px;">加载更多... (100/145)</button></div>
+  <div class="loading" id="loading" style="display: none;">加载中...</div>
+  <div class="no-data" id="noData" style="display:none">无匹配数据</div>
+</div>
+
+<div class="modal-overlay" id="colModal">
+  <div class="modal">
+    <div class="modal-header"><h4>选择展示字段（维度列固定不可拖动）</h4><button class="close" onclick="closeColPicker()">×</button></div>
+    <div class="modal-body" id="colModalBody"></div>
+    <div class="modal-footer"><button class="btn-default" onclick="closeColPicker()">取消</button><button class="btn-primary" onclick="applyColPicker()">确定</button></div>
+  </div>
+</div>
+
+<script>
+let allData=[],colOrder=[],colVisible={};
+const DIM_KEYS=['运营期数','运营月份','主体','小组','运营','渠道来源'];
+const ABS_DEFS=[{key:'授权数',label:'授权数'},{key:'添加数',label:'添加数'}];
+const RATE_DEFS=[
+  {key:'添加率',calc:(r)=>R(r['添加数'],r['授权数']),note:'添加/授权'},
+  {key:'开营前流失率',calc:(r)=>R(r['开营前流失'],r['添加数']),note:'流失/添加'},
+  {key:'问卷率',calc:(r)=>R(r['问卷数'],r['添加数']),note:'问卷/添加'},
+  {key:'进群率',calc:(r)=>R(r['进群数'],r['添加数']),note:'进群/添加'},
+  {key:'D1到课率',calc:(r)=>R(r['D1到课数'],r['添加数']),note:'D1到课/添加'},
+  {key:'D1完课率',calc:(r)=>R(r['D1完课数'],r['D1到课数']),note:'D1完课/D1到课'},
+  {key:'D2到课率',calc:(r)=>R(r['D2到课数'],r['添加数']),note:'D2到课/添加'},
+  {key:'D2完课率',calc:(r)=>R(r['D2完课数'],r['D2到课数']),note:'D2完课/D2到课'},
+  {key:'D3到课率',calc:(r)=>R(r['D3到课数'],r['添加数']),note:'D3到课/添加'},
+  {key:'D3完课率',calc:(r)=>R(r['D3完课数'],r['D3到课数']),note:'D3完课/D3到课'},
+  {key:'D4到课率',calc:(r)=>R(r['D4到课数'],r['添加数']),note:'D4到课/添加'},
+  {key:'D4完课率',calc:(r)=>R(r['D4完课数'],r['D4到课数']),note:'D4完课/D4到课'},
+  {key:'D5到课率',calc:(r)=>R(r['D5到课数'],r['添加数']),note:'D5到课/添加'},
+  {key:'D5完课率',calc:(r)=>R(r['D5完课数'],r['D5到课数']),note:'D5完课/D5到课'},
+  {key:'发起率',calc:(r)=>R(r['发起支付人数'],r['添加数']),note:'发起/添加'},
+  {key:'总转化率',calc:(r)=>R(r['总转化数'],r['授权数']),note:'(当期+往期)/授权'},
+  {key:'当期转化率',calc:(r)=>R(r['当期转化数'],r['添加数']),note:'当期/添加'},
+  {key:'往期转化率',calc:(r)=>R(r['往期转化数'],r['添加数']),note:'往期/添加'},
+  {key:'订单成交率',calc:(r)=>R(r['当期转化数'],r['发起支付人数']),note:'当期/发起'},
+  {key:'退款率',calc:(r)=>R(r['退款数'],r['当期转化数'],'0'),note:'退款/当期'},
+];
+function R(num,den,zv){if(!den||den===0)return zv!==undefined?zv:'无';return(Number(num||0)/Number(den)*100).toFixed(1)+'%';}
+function buildDefaultOrder(){colOrder=[];colVisible={};DIM_KEYS.forEach(k=>{colOrder.push({key:k,type:'dim'});colVisible[k]=true;});ABS_DEFS.forEach(d=>{colOrder.push({key:d.key,type:'abs'});colVisible[d.key]=d.key!=='添加数';});RATE_DEFS.forEach(d=>{colOrder.push({key:d.key,type:'rate',calc:d.calc});colVisible[d.key]=true;});}
+
+// ======== 多选下拉 ========
+const MS={};
+function createMS(id,opts){
+  const w=document.getElementById('ms'+id); w.innerHTML='';
+  const s={sel:new Set(),opts,id,agg:false}; MS[id]=s;
+  const b=document.createElement('div'); b.className='ms-btn'; b.innerHTML='全部 <span class="arrow">▼</span>';
+  b.onclick=e=>{e.stopPropagation();toggleDrop(id);}; w.appendChild(b);
+  const d=document.createElement('div'); d.className='ms-drop'; d.id='drop'+id;
+  const a=document.createElement('div'); a.className='ms-actions';
+  a.innerHTML='<label class="ms-all"><input type="checkbox" onchange="toggleAll(\''+id+'\',this.checked)"> 全选</label>';
+  d.appendChild(a);
+  // 汇总勾选框
+  const agg=document.createElement('div'); agg.className='ms-agg';
+  agg.innerHTML='<label><input type="checkbox" onchange="toggleAgg(\''+id+'\',this.checked)"> 汇总</label>';
+  d.appendChild(agg);
+  const it=document.createElement('div'); it.className='ms-items'; d.appendChild(it); s.items=it;
+  buildItems(s);
+  // 关闭按钮 — 在滚动区外面，始终可见
+  const closeDiv=document.createElement('div');
+  closeDiv.style.cssText='padding:6px 10px;border-top:1px solid #e0e0e0;text-align:center;background:#fff;';
+  closeDiv.innerHTML='<button onclick="event.stopPropagation();MS[\''+id+'\'].drop.classList.remove(\'show\')" style="padding:3px 20px;font-size:12px;border-radius:3px;border:1px solid #d9d9d9;background:#fff;cursor:pointer;color:#333;">关闭</button>';
+  d.appendChild(closeDiv);
+  w.appendChild(d); s.btn=b; s.drop=d; s.aggCb=agg.querySelector('input');
+}
+function buildItems(s){const id=s.id;s.items.innerHTML='';s.opts.forEach(o=>{const l=document.createElement('label'),cb=document.createElement('input');cb.type='checkbox';cb.value=o;cb.checked=s.sel.has(o);cb.onchange=()=>onCheck(id);l.appendChild(cb);l.appendChild(document.createTextNode(o));s.items.appendChild(l);});}
+function updateOpts(id,newOpts){
+  const s=MS[id],ns=new Set(newOpts),v=new Set([...s.sel].filter(x=>ns.has(x))),ch=v.size!==s.sel.size;
+  s.sel=v;s.opts=newOpts;buildItems(s);updBtn(id);syncAllCb(id);if(ch&&s._oc)s._oc(s.sel);
+}
+function toggleDrop(id){const s=MS[id];if(s.locked)return;const sh=!s.drop.classList.contains('show');if(sh)s.drop.classList.add('show');else s.drop.classList.remove('show');}
+function closeAll(){Object.values(MS).forEach(s=>s.drop.classList.remove('show'));}
+function toggleAgg(id,checked){
+  const s=MS[id]; s.agg=checked;
+  if(checked){
+    s.items.querySelectorAll('input[type=checkbox]').forEach(cb=>cb.checked=false);
+    s.sel=new Set();
+    const allCb=s.drop.querySelector('.ms-all input');if(allCb)allCb.checked=false;
+    s.btn.innerHTML='汇总 <span class="arrow">▼</span>';
+    s.btn.classList.add('has-sel');
+    // 下级也变汇总
+    setDownAgg(id);
+  }else{
+    s.items.querySelectorAll('input[type=checkbox]').forEach(cb=>{cb.checked=true;});
+    s.sel=new Set(s.opts);
+    s.btn.innerHTML='全部 <span class="arrow">▼</span>';
+    s.btn.classList.remove('has-sel');
+    unlockDown(id);
+  }
+}
+function toggleAll(id,checked){
+  const s=MS[id];
+  s.items.querySelectorAll('input[type=checkbox]').forEach(cb=>{cb.checked=checked;});
+  onCheck(id);
+}
+function onCheck(id){const s=MS[id];s.sel=new Set();s.items.querySelectorAll('input[type=checkbox]').forEach(cb=>{if(cb.checked)s.sel.add(cb.value);});updBtn(id);syncAllCb(id);
+  // 选了具体项 → 取消汇总
+  if(s.agg&&s.sel.size>0){s.agg=false;if(s.aggCb)s.aggCb.checked=false;s.btn.innerHTML='全部 <span class="arrow">▼</span>';s.btn.classList.remove('has-sel');}
+  if(s._oc)s._oc(s.sel);}
+function syncAllCb(id){const s=MS[id],ac=s.drop.querySelector('.ms-all input');if(ac){const all=s.items.querySelectorAll('input[type=checkbox]');const checked=[...all].filter(cb=>cb.checked).length;ac.checked=checked===0||checked===all.length;ac.indeterminate=checked>0&&checked<all.length;}}
+function updBtn(id){const s=MS[id],n=s.sel.size,t=s.opts.length;if(s.agg){s.btn.innerHTML='汇总 <span class="arrow">▼</span>';s.btn.classList.add('has-sel');}else if(n===0||n===t){s.btn.innerHTML='全部 <span class="arrow">▼</span>';s.btn.classList.remove('has-sel');}else if(n===1){s.btn.innerHTML=[...s.sel][0]+' <span class="arrow">▼</span>';s.btn.classList.add('has-sel');}else{s.btn.innerHTML=n+'项 <span class="arrow">▼</span>';s.btn.classList.add('has-sel');}}
+function getVals(id){return[...MS[id].sel];}
+
+// ======== 级联 ========
+function baseData(){
+  let r=allData;const ms=getVals('Month');if(ms.length&&ms.length<MS['Month'].opts.length){const s=new Set(ms);r=r.filter(x=>s.has(x['运营月份']));}
+  const ps=getVals('Period');if(ps.length&&ps.length<MS['Period'].opts.length){const s=new Set(ps);r=r.filter(x=>s.has(x['运营期数']));}
+  return r;
+}
+function rebPer(){let r=allData;const ms=getVals('Month');if(ms.length&&ms.length<MS['Month'].opts.length){const s=new Set(ms);r=r.filter(x=>s.has(x['运营月份']));}updateOpts('Period',[...new Set(r.map(x=>x['运营期数']))].sort((a,b)=>cmpP(b,a)));}
+function rebSub(){updateOpts('Subject',[...new Set(allData.map(x=>x['主体']))].sort((a,b)=>a.localeCompare(b,'zh')));}
+function rebGrp(){let r=allData;const ss=getVals('Subject');if(ss.length&&ss.length<MS['Subject'].opts.length){const s=new Set(ss);r=r.filter(x=>s.has(x['主体']));}updateOpts('Group',[...new Set(r.map(x=>x['小组']))].sort((a,b)=>a.localeCompare(b,'zh')));}
+function rebOp(){let r=allData;const ss=getVals('Subject');if(ss.length&&ss.length<MS['Subject'].opts.length){const s=new Set(ss);r=r.filter(x=>s.has(x['主体']));}const gs=getVals('Group');if(gs.length&&gs.length<MS['Group'].opts.length){const s=new Set(gs);r=r.filter(x=>s.has(x['小组']));}updateOpts('Operator',[...new Set(r.map(x=>x['运营']))].sort((a,b)=>a.localeCompare(b,'zh')));}
+function rebCh(){let r=baseData();const ss=getVals('Subject');if(ss.length&&ss.length<MS['Subject'].opts.length){const s=new Set(ss);r=r.filter(x=>s.has(x['主体']));}const gs=getVals('Group');if(gs.length&&gs.length<MS['Group'].opts.length){const s=new Set(gs);r=r.filter(x=>s.has(x['小组']));}const os2=getVals('Operator');if(os2.length&&os2.length<MS['Operator'].opts.length){const s=new Set(os2);r=r.filter(x=>s.has(x['运营']));}updateOpts('Channel',[...new Set(r.map(x=>x['渠道来源']))].sort((a,b)=>a.localeCompare(b,'zh')));}
+function setupCascade(){
+  MS['Month']._oc=()=>{rebPer();resetDown('Period');};
+  MS['Period']._oc=()=>{}; // 期数无下级
+  MS['Subject']._oc=()=>{rebGrp();resetDown('Group');rebOp();resetDown('Operator');};
+  MS['Group']._oc=()=>{rebOp();resetDown('Operator');};
+  MS['Operator']._oc=()=>{}; // 运营无下级
+}
+function resetDown(id){
+  const s=MS[id];if(!s)return;
+  s.locked=false; s.btn.style.opacity='';s.btn.style.pointerEvents='';
+  s.items.querySelectorAll('input[type=checkbox]').forEach(cb=>cb.checked=true);
+  s.sel=new Set(s.opts);
+  updBtn(id);syncAllCb(id);
+}
+function setDownAgg(id){
+  const map={Month:['Period'],Subject:['Group','Operator'],Group:['Operator']};
+  (map[id]||[]).forEach((did,i)=>{
+    const ds=MS[did];
+    ds.items.querySelectorAll('input[type=checkbox]').forEach(cb=>cb.checked=false);
+    ds.sel=new Set();
+    const ac=ds.drop.querySelector('.ms-all input');if(ac)ac.checked=false;
+    ds.agg=true;if(ds.aggCb)ds.aggCb.checked=true;
+    ds.locked=true; ds.btn.style.opacity='.4';ds.btn.style.pointerEvents='none';
+    updBtn(did);
+  });
+}
+function unlockDown(id){
+  const map={Month:['Period'],Subject:['Group','Operator'],Group:['Operator']};
+  (map[id]||[]).forEach(did=>{
+    const ds=MS[did];
+    ds.locked=false; ds.btn.style.opacity='';ds.btn.style.pointerEvents='';
+    ds.sel=new Set(ds.opts);
+    ds.items.querySelectorAll('input[type=checkbox]').forEach(cb=>cb.checked=true);
+    ds.agg=false;if(ds.aggCb)ds.aggCb.checked=false;
+    updBtn(did);syncAllCb(did);
+  });
+}
+function cmpP(a,b){const na=parseInt(a)||0,nb=parseInt(b)||0;if(na!==nb)return na-nb;return(a||'').localeCompare(b||'');}
+
+function initMS(){
+  createMS('Month',[...new Set(allData.map(r=>r['运营月份']))].sort().reverse());
+  createMS('Period',[...new Set(allData.map(r=>r['运营期数']))].sort((a,b)=>cmpP(b,a)));
+  createMS('Subject',[...new Set(allData.map(r=>r['主体']))].sort((a,b)=>a.localeCompare(b,'zh')));
+  createMS('Group',[...new Set(allData.map(r=>r['小组']))].sort((a,b)=>a.localeCompare(b,'zh')));
+  createMS('Operator',[...new Set(allData.map(r=>r['运营']))].sort((a,b)=>a.localeCompare(b,'zh')));
+  createMS('Channel',[...new Set(allData.map(r=>r['渠道来源']))].sort((a,b)=>a.localeCompare(b,'zh')));
+  setupCascade();
+  Object.keys(MS).forEach(k=>syncAllCb(k));
+  applyFilters();
+}
+
+function resetFilters(){
+  Object.values(MS).forEach(s=>{
+    s.items.querySelectorAll('input[type=checkbox]').forEach(cb=>cb.checked=false);
+    s.sel=new Set();updBtn(s.id);
+    if(s.agg){s.agg=false;if(s.aggCb)s.aggCb.checked=false;}
+    s.locked=false; s.btn.style.opacity='';s.btn.style.pointerEvents='';
+  });
+  rebPer();rebSub();rebGrp();rebOp();rebCh();detailFilters=[];initDetailFilter();applyFilters();
+}
+
+// ======== 筛选 ========
+function getFilteredData(){
+  let r=allData;const ms=getVals('Month');if(ms.length&&ms.length<MS['Month'].opts.length){const s=new Set(ms);r=r.filter(x=>s.has(x['运营月份']));}
+  const ps=getVals('Period');if(ps.length&&ps.length<MS['Period'].opts.length){const s=new Set(ps);r=r.filter(x=>s.has(x['运营期数']));}
+  const ss=getVals('Subject');if(ss.length&&ss.length<MS['Subject'].opts.length){const s=new Set(ss);r=r.filter(x=>s.has(x['主体']));}
+  const gs=getVals('Group');if(gs.length&&gs.length<MS['Group'].opts.length){const s=new Set(gs);r=r.filter(x=>s.has(x['小组']));}
+  const os2=getVals('Operator');if(os2.length&&os2.length<MS['Operator'].opts.length){const s=new Set(os2);r=r.filter(x=>s.has(x['运营']));}
+  const cs=getVals('Channel');if(cs.length&&cs.length<MS['Channel'].opts.length){const s=new Set(cs);r=r.filter(x=>s.has(x['渠道来源']));}
+  
+  // 聚合：将标记为汇总的字段值替换为"汇总"，然后按所有维度分组求和
+  const DIM_TO_MS={'运营月份':'Month','运营期数':'Period','主体':'Subject','小组':'Group','运营':'Operator','渠道来源':'Channel'};
+  const aggFields=DIM_KEYS.filter(k=>MS[DIM_TO_MS[k]]&&MS[DIM_TO_MS[k]].agg);
+  if(aggFields.length){
+    const NUM_KEYS=[...ABS_DEFS.map(d=>d.key),'开营前流失','问卷数','进群数','D1到课数','D1完课数','D2到课数','D2完课数','D3到课数','D3完课数','D4到课数','D4完课数','D5到课数','D5完课数','发起支付人数','总转化数','当期转化数','往期转化数','退款数'];
+    const grp={};
+    r.forEach(row=>{
+      const key=DIM_KEYS.map(k=>aggFields.includes(k)?'':(row[k]||'')).join('|||');
+      if(!grp[key]){grp[key]={};DIM_KEYS.forEach(k=>{grp[key][k]=aggFields.includes(k)?'':(row[k]||'');});NUM_KEYS.forEach(nk=>{grp[key][nk]=0;});}
+      NUM_KEYS.forEach(nk=>{grp[key][nk]+=Number(row[nk])||0;});
+    });
+    r=Object.values(grp);
+  }
+  
+  return [...r].sort((a,b)=>{const p=cmpP(b['运营期数'],a['运营期数']);if(p)return p;return -(a['运营月份']||'').localeCompare(b['运营月份']||'');});
+}
+function applyFilters(){const data=getFilteredData();renderSummary(data);renderTable(applyDetailFilters(data));}
+// ======== 明细筛选 ========
+let detailFilters=[];
+function toggleDetailFilter(e){e.stopPropagation();const df=document.getElementById('detailFilter');df.style.display=df.style.display==='block'?'none':'block'}
+function updateDFCount(){
+  const active=detailFilters.filter(f=>f.col&&f.val!=='').length;
+  const btn=document.querySelector('.df-btn');
+  if(btn)btn.textContent='🔽 明细筛选'+(active?' ('+active+')':'');
+}
+function initDetailFilter(){
+  const df=document.getElementById('detailFilter');df.innerHTML='';
+  df.style.display='none';
+  const cols=getCols().filter(c=>c.type!=='dim').map(c=>{const rd=RATE_DEFS.find(d=>d.key===c.key);return{key:c.key,label:rd?c.key:(ABS_DEFS.find(d=>d.key===c.key)||{}).label||c.key,type:c.type};});
+  if(!detailFilters.length)detailFilters.push({col:'',op:'gt',val:''});
+  detailFilters.forEach((f,i)=>df.appendChild(buildDFRow(cols,f,i)));
+  const add=document.createElement('button');
+  add.textContent='+ 筛选条件';add.style.cssText='padding:4px 8px;font-size:13px;border:1px dashed #d9d9d9;border-radius:3px;background:#fff;cursor:pointer;color:#666;margin-top:4px';
+  add.onclick=(e)=>{e.stopPropagation();addDFRow();applyFilters();};df.appendChild(add);
+  updateDFCount();
+}
+function addDFRow(){
+  const df=document.getElementById('detailFilter');const cols=getCols().filter(c=>c.type!=='dim').map(c=>{const rd=RATE_DEFS.find(d=>d.key===c.key);return{key:c.key,label:rd?c.key:(ABS_DEFS.find(d=>d.key===c.key)||{}).label||c.key,type:c.type};});
+  detailFilters.push({col:'',op:'gt',val:''});const i=detailFilters.length-1;
+  const add=df.querySelector('button:last-child');df.insertBefore(buildDFRow(cols,detailFilters[i],i),add);
+  updateDFCount();
+}
+function buildDFRow(cols,f,i){
+  const w=document.createElement('div');w.style.cssText='display:flex;gap:4px;align-items:center;margin-bottom:4px';
+  // × 按钮始终显示
+  const d=document.createElement('button');d.textContent='×';d.style.cssText='padding:2px 6px;font-size:12px;border:none;background:none;cursor:pointer;color:#999';d.onclick=(e)=>{e.stopPropagation();detailFilters.splice(i,1);w.remove();updateDFCount();applyFilters();};w.appendChild(d);
+  const sel=document.createElement('select');sel.style.cssText='padding:4px 6px;font-size:13px;border:1px solid #d9d9d9;border-radius:3px';
+  sel.innerHTML='<option value="">选择字段</option>'+cols.map(c=>'<option value="'+c.key+'"'+(f.col===c.key?' selected':'')+'>'+c.label+'</option>').join('');
+  sel.onchange=(e)=>{e.stopPropagation();detailFilters[i].col=sel.value;updateDFCount();applyFilters()};w.appendChild(sel);
+  const op=document.createElement('select');op.style.cssText='padding:4px 6px;font-size:13px;border:1px solid #d9d9d9;border-radius:3px';
+  op.innerHTML='<option value="gt"'+(f.op==='gt'?' selected':'')+'>≥</option><option value="lt"'+(f.op==='lt'?' selected':'')+'>≤</option>';
+  op.onchange=(e)=>{e.stopPropagation();detailFilters[i].op=op.value;updateDFCount();applyFilters()};w.appendChild(op);
+  const inp=document.createElement('input');inp.type='text';inp.placeholder='数值';inp.style.cssText='padding:4px 6px;font-size:13px;border:1px solid #d9d9d9;border-radius:3px;width:65px';inp.value=f.val;
+  inp.oninput=(e)=>{e.stopPropagation();detailFilters[i].val=inp.value;updateDFCount();applyFilters()};w.appendChild(inp);return w;
+}
+function applyDetailFilters(rows){
+  if(!detailFilters.length)return rows;
+  return rows.filter(r=>detailFilters.every(f=>{
+    if(!f.col||f.val==='')return true;const v=parseFloat(f.val);if(isNaN(v))return true;
+    const rd=RATE_DEFS.find(d=>d.key===f.col);
+    const val=rd?parseFloat(rd.calc(r)):(Number(r[f.col])||0);
+    return f.op==='gt'?val>=v:val<=v;
+  }));
+}
+function renderSummary(rows){const S=k=>rows.reduce((s,r)=>s+(Number(r[k])||0),0);const a=S('授权数'),d=S('添加数'),c=S('开营前流失'),sv=S('问卷数'),g=S('进群数'),p=S('发起支付人数'),cu=S('当期转化数'),o=S('往期转化数'),rf=S('退款数');document.getElementById('cardAuth').textContent=a.toLocaleString();document.getElementById('cardAdd').textContent=d.toLocaleString();document.getElementById('cardR1').textContent=R(d,a);document.getElementById('cardR2').textContent=R(c,d);document.getElementById('cardR3').textContent=R(sv,d);document.getElementById('cardR4').textContent=R(g,d);document.getElementById('cardR5').textContent=R(p,d);document.getElementById('cardR6').textContent=R(cu+o,a);document.getElementById('cardR7').textContent=R(cu,p);document.getElementById('cardR8').textContent=R(rf,cu,'0');}
+
+// ======== 明细表格 ========
+let drg=null, sortKey=null, sortDir=-1; // -1=desc, 1=asc
+
+function sortRows(rows, key){
+  if(!key)return rows;
+  const m=sortDir;
+  const vc=colOrder.filter(c=>colVisible[c.key]);
+  const col=vc.find(c=>c.key===key);
+  if(!col)return rows;
+  return [...rows].sort((a,b)=>{
+    let va,vb;
+    if(col.type==='dim'){va=(a[key]||''); vb=(b[key]||''); return m*va.localeCompare(vb,'zh');}
+    if(col.type==='abs'){va=Number(a[key])||0; vb=Number(b[key])||0; return m*(va-vb);}
+    if(col.type==='rate'){
+      const ra=col.calc(a), rb=col.calc(b);
+      va=parseFloat(ra); if(isNaN(va)||ra==='无')va=-1;
+      vb=parseFloat(rb); if(isNaN(vb)||rb==='无')vb=-1;
+      return m*(va-vb);
+    }
+    return 0;
+  });
+}
+
+function sortBy(key){if(sortKey===key){sortDir=sortDir===-1?1:sortDir===1?0:-1;}else{sortKey=key;sortDir=-1;}applyFilters();}
+
+function sortArrow(k){return k===sortKey?(sortDir===-1?' ▼':sortDir===1?' ▲':''):'';}
+
+// 固定列：维度+绝对值。绝对值也参与排序
+const SORTABLE_KEYS=new Set([...ABS_DEFS.map(d=>d.key),...RATE_DEFS.map(d=>d.key)]);
+function getCols(){
+  return colOrder.filter(c=>colVisible[c.key]).map(c=>{
+    const def=RATE_DEFS.find(d=>d.key===c.key);
+    if(def)return{key:c.key,type:'rate',calc:def.calc};
+    return c;
+  });
+}
+
+// ======== 分页加载 ========
+const PAGE_SIZE=100;
+let allRows=[], pageOffset=0, currentCols=[];
+
+function renderTable(rows){
+  document.getElementById('loading').style.display='none';
+  if(!rows.length){
+    document.getElementById('noData').style.display='block';
+    document.getElementById('tableHead').innerHTML='';document.getElementById('tableBody').innerHTML='';
+    document.getElementById('tableInfo').textContent='';document.getElementById('loadMoreWrap').style.display='none';return;
+  }
+  document.getElementById('noData').style.display='none';
+  document.getElementById('tableInfo').textContent='共 '+rows.length+' 条';
+  
+  allRows=sortRows(rows,sortKey);
+  pageOffset=0;
+  currentCols=getCols();
+  
+  // 渲染表头（只做一次）
+  renderHeader(currentCols);
+  // 清空并渲染第一页
+  document.getElementById('tableBody').innerHTML='';
+  appendPage();
+}
+
+function renderHeader(cols){
+  const ar=k=>k===sortKey?(sortDir===-1?' ▼':sortDir===1?' ▲':''):'';
+  const isSticky=k=>DIM_KEYS.includes(k)||ABS_DEFS.some(d=>d.key===k);
+  const isSortable=k=>SORTABLE_KEYS.has(k);
+  const stickyKeys=DIM_KEYS.length+ABS_DEFS.filter(d=>colVisible[d.key]).length;
+  
+  document.getElementById('tableHead').innerHTML='<tr>'+cols.map((c,i)=>{
+    let cls='',ext='';
+    if(isSticky(c.key)){
+      cls='sticky-left';
+      if(i===stickyKeys-1) cls+=' sticky-last';
+      if(isSortable(c.key)){cls+=' sortable';ext=' onclick="sortBy(\''+c.key+'\')"';}
+    }else{
+      cls='sortable draggable';
+      ext=' draggable="true" data-key="'+c.key+'" onclick="sortBy(\''+c.key+'\')" ondragstart="onDS(event)" ondragover="onDO(event)" ondragleave="onDL(event)" ondrop="onDD(event)" ondragend="onDE(event)"';
+    }
+    return'<th class="'+cls+'"'+ext+'>'+c.key+ar(c.key)+'</th>';
+  }).join('')+'</tr>';
+}
+
+function appendPage(){
+  const end=Math.min(pageOffset+PAGE_SIZE, allRows.length);
+  const slice=allRows.slice(pageOffset, end);
+  const cols=currentCols;
+  const isSticky=k=>DIM_KEYS.includes(k)||ABS_DEFS.some(d=>d.key===k);
+  const stickyKeys=DIM_KEYS.length+ABS_DEFS.filter(d=>colVisible[d.key]).length;
+  
+  const html=slice.map(r=>'<tr>'+cols.map((c,i)=>{
+    let cls=isSticky(c.key)?(i===stickyKeys-1?'sticky-left sticky-last':'sticky-left'):'';
+    let v;if(c.type==='rate')v=c.calc(r);else v=r[c.key]??'';
+    return'<td class="'+cls+'">'+v+'</td>';
+  }).join('')+'</tr>').join('');
+  
+  document.getElementById('tableBody').insertAdjacentHTML('beforeend', html);
+  pageOffset=end;
+  
+  // 更新按钮
+  const btn=document.getElementById('loadMoreWrap');
+  if(pageOffset>=allRows.length){btn.style.display='none';}
+  else{btn.style.display='block';btn.querySelector('button').textContent='加载更多... ('+pageOffset+'/'+allRows.length+')';}
+  
+  calcSticky();
+}
+
+function loadMore(){appendPage();}
+
+function calcSticky(){
+  const ths=document.querySelectorAll('#tableHead th.sticky-left');
+  const tds=document.querySelectorAll('#tableBody tr');
+  if(!tds.length)return;
+  const firstRow=tds[0].querySelectorAll('td.sticky-left');
+  let left=0;
+  ths.forEach((th,i)=>{
+    th.style.left=left+'px';
+    if(firstRow[i])firstRow[i].style.left=left+'px';
+    left+=th.offsetWidth;
+  });
+  // 同步所有行
+  const lefts=[];
+  ths.forEach(th=>lefts.push(th.style.left));
+  tds.forEach(tr=>{
+    const cells=tr.querySelectorAll('td.sticky-left');
+    cells.forEach((td,i)=>{if(lefts[i])td.style.left=lefts[i];});
+  });
+}
+function onDS(e){const t=e.target;if(!t.classList.contains('draggable')){e.preventDefault();return;}drg=t.dataset.key;t.classList.add('dragging');e.dataTransfer.effectAllowed='move';e.dataTransfer.setData('text/plain','');}
+function onDO(e){const t=e.target;if(!t.classList.contains('draggable'))return;e.preventDefault();e.dataTransfer.dropEffect='move';t.classList.add('drag-over');}
+function onDL(e){e.target.classList.remove('drag-over');}
+function onDD(e){e.preventDefault();const t=e.target;t.classList.remove('drag-over');if(!t.classList.contains('draggable'))return;const dk=t.dataset.key;if(!drg||drg===dk)return;const si=colOrder.findIndex(c=>c.key===drg),di=colOrder.findIndex(c=>c.key===dk);if(si>=0&&di>=0){const[m]=colOrder.splice(si,1);colOrder.splice(di,0,m);}drg=null;applyFilters();}
+function onDE(e){e.target.classList.remove('dragging');document.querySelectorAll('th.drag-over').forEach(t=>t.classList.remove('drag-over'));drg=null;}
+
+// ======== 字段选择弹窗 ========
+function openColPicker(){const b=document.getElementById('colModalBody');let h='<div style="font-size:13px;color:#999;margin-bottom:10px;">维度字段（固定不可拖动，不可取消）</div>';DIM_KEYS.forEach(k=>{h+='<label><input type="checkbox" checked disabled> '+k+' <span style="color:#bbb;font-size:11px;">（固定）</span></label>';});h+='<div style="font-size:13px;color:#999;margin:12px 0 8px;">绝对值字段</div>';ABS_DEFS.forEach(d=>{h+='<label><input type="checkbox" value="'+d.key+'" '+(colVisible[d.key]?'checked':'')+'> '+d.label+'</label>';});h+='<div style="font-size:13px;color:#999;margin:12px 0 8px;">比率字段</div>';RATE_DEFS.forEach(d=>{h+='<label><input type="checkbox" value="'+d.key+'" '+(colVisible[d.key]?'checked':'')+'> '+d.key+' <span style="color:#bbb;font-size:11px;">'+d.note+'</span></label>';});b.innerHTML=h;document.getElementById('colModal').classList.add('show');}
+function closeColPicker(){document.getElementById('colModal').classList.remove('show');}
+function resetColOrder(){buildDefaultOrder();sortKey=null;sortDir=-1;document.getElementById('presetCols').value='all';detailFilters=[];initDetailFilter();applyFilters();}
+function dimSwitch(idx){
+  const chains={0:['Period'], 1:[], 2:['Group','Operator'], 3:['Operator'], 4:[], 5:['Group','Operator']};
+  const labels=['Month','Period','Subject','Group','Operator','Channel'];
+  const target=labels[idx];
+  // 先全部解锁
+  Object.values(MS).forEach(s=>{
+    s.locked=false; s.btn.style.opacity='';s.btn.style.pointerEvents='';
+  });
+  // 目标：全选
+  const s=MS[target];
+  s.items.querySelectorAll('input[type=checkbox]').forEach(cb=>cb.checked=true);
+  s.sel=new Set(s.opts);
+  s.agg=false; if(s.aggCb)s.aggCb.checked=false;
+  updBtn(target); syncAllCb(target);
+  // 下级：汇总
+  (chains[idx]||[]).forEach((id,i)=>{
+    const ds=MS[id];
+    ds.items.querySelectorAll('input[type=checkbox]').forEach(cb=>cb.checked=false);
+    ds.sel=new Set();
+    const ac=ds.drop.querySelector('.ms-all input');if(ac)ac.checked=false;
+    ds.agg=true; if(ds.aggCb)ds.aggCb.checked=true;
+    if(i>0){ds.locked=true; ds.btn.style.opacity='.4';ds.btn.style.pointerEvents='none';}
+    updBtn(id);
+  });
+  applyFilters();
+}
+function applyPreset(){
+  const v=document.getElementById('presetCols').value;
+  // 先全部隐藏比率列
+  RATE_DEFS.forEach(d=>colVisible[d.key]=false);
+  if(v==='all'||!v){RATE_DEFS.forEach(d=>colVisible[d.key]=true);}
+  else if(v==='flow'){
+    ['添加率','开营前流失率','问卷率','进群率'].forEach(k=>colVisible[k]=true);
+  }else if(v==='live'){
+    RATE_DEFS.filter(d=>d.key.includes('D')).forEach(d=>colVisible[d.key]=true);
+  }else if(v==='conv'){
+    ['发起率','总转化率','当期转化率','往期转化率','订单成交率','退款率'].forEach(k=>colVisible[k]=true);
+  }
+  initDetailFilter();
+  applyFilters();
+}
+function applyColPicker(){document.querySelectorAll('#colModalBody input[type=checkbox]:not([disabled])').forEach(cb=>{colVisible[cb.value]=cb.checked;});initDetailFilter();closeColPicker();applyFilters();}
+document.getElementById('colModal').addEventListener('click',function(e){if(e.target===this)closeColPicker();});
+document.addEventListener('click',function(e){if(!e.target.closest('.ms-wrap'))closeAll();if(!e.target.closest('#detailFilter')&&!e.target.closest('.df-btn')){document.getElementById('detailFilter').style.display='none';}});
+
+// ======== 读取层 ========
+async function loadData(){
+  const r=await fetch('_panel_data.json');
+  const j=await r.json();
+  // 后续预处理逻辑在此添加，处理后返回 rows
+  return j.rows;
+}
+
+// ======== 初始化 ========
+async function init(){try{allData=await loadData();buildDefaultOrder();initMS();initDetailFilter();document.getElementById('headerMeta').textContent=allData.length.toLocaleString()+' 条记录 | '+[...new Set(allData.map(r=>r['运营期数']))].length+' 个期数';applyFilters();}catch(e){document.getElementById('loading').textContent='数据加载失败: '+e.message;}}
+init();
+</script>
+
+
+</div></body></html>
