@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="zh-CN"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>数据查看面板 — 黄导项目</title>
@@ -575,12 +576,12 @@ document.addEventListener('click',function(e){if(!e.target.closest('.ms-wrap'))c
 
 // ======== 读取层 ========
 async function loadData(){
-  const r=await fetch('基础数据汇总_订单已匹配.xlsx');
+  const r=await fetch('基础数据汇总_订单已匹配.xlsx?t='+Date.now());
+  if(!r.ok)throw new Error('Excel加载失败: '+r.status);
   const buf=await r.arrayBuffer();
   const wb=XLSX.read(buf,{type:'array'});
   const sheet=wb.Sheets[wb.SheetNames[0]];
   const rows=XLSX.utils.sheet_to_json(sheet,{defval:''});
-  // 后续预处理逻辑在此添加，处理后返回 rows
   return rows;
 }
 
