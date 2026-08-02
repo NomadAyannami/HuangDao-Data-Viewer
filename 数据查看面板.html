@@ -1,6 +1,6 @@
 <!DOCTYPE html>
-<!-- saved from url=(0086)http://localhost:8765/%E6%95%B0%E6%8D%AE%E6%9F%A5%E7%9C%8B%E9%9D%A2%E6%9D%BF.html?v=57 -->
 <html lang="zh-CN"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>数据查看面板 — 黄导项目</title>
@@ -575,10 +575,13 @@ document.addEventListener('click',function(e){if(!e.target.closest('.ms-wrap'))c
 
 // ======== 读取层 ========
 async function loadData(){
-  const r=await fetch('_panel_data.json');
-  const j=await r.json();
+  const r=await fetch('基础数据汇总_订单已匹配.xlsx');
+  const buf=await r.arrayBuffer();
+  const wb=XLSX.read(buf,{type:'array'});
+  const sheet=wb.Sheets[wb.SheetNames[0]];
+  const rows=XLSX.utils.sheet_to_json(sheet,{defval:''});
   // 后续预处理逻辑在此添加，处理后返回 rows
-  return j.rows;
+  return rows;
 }
 
 // ======== 初始化 ========
