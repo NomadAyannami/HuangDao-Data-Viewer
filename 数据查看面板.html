@@ -180,7 +180,7 @@ const RATE_DEFS=[
   {key:'订单成交率',calc:(r)=>R(r['当期转化数'],r['发起支付人数']),note:'当期/发起'},
   {key:'退款率',calc:(r)=>R(r['退款数'],r['当期转化数'],'0'),note:'退款/当期'},
 ];
-function R(num,den,zv){if(!den||den===0)return zv!==undefined?zv:'无';return(Number(num||0)/Number(den)*100).toFixed(2)+'%';}
+function R(num,den,zv){if(!den||den===0)return zv!==undefined?zv:'无';return(Number(num||0)/Number(den)*100).toFixed(1)+'%';}
 function buildDefaultOrder(){colOrder=[];colVisible={};DIM_KEYS.forEach(k=>{colOrder.push({key:k,type:'dim'});colVisible[k]=true;});ABS_DEFS.forEach(d=>{colOrder.push({key:d.key,type:'abs'});colVisible[d.key]=d.key!=='添加数';});RATE_DEFS.forEach(d=>{colOrder.push({key:d.key,type:'rate',calc:d.calc});colVisible[d.key]=true;});}
 
 // ======== 多选下拉 ========
