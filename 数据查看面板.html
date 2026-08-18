@@ -174,13 +174,14 @@ const RATE_DEFS=[
   {key:'D5到课率',calc:(r)=>R(r['D5到课数'],r['添加数']),note:'D5到课/添加'},
   {key:'D5完课率',calc:(r)=>R(r['D5完课数'],r['D5到课数']),note:'D5完课/D5到课'},
   {key:'发起率',calc:(r)=>R(r['发起支付人数'],r['添加数']),note:'发起/添加'},
-  {key:'总转化率',calc:(r)=>R(r['总转化数'],r['授权数']),note:'(当期+往期)/授权'},
-  {key:'当期转化率',calc:(r)=>R(r['当期转化数'],r['授权数']),note:'当期/授权'},
-  {key:'往期转化率',calc:(r)=>R(r['往期转化数'],r['授权数']),note:'往期/授权'},
+  {key:'总转化率',calc:(r)=>R2(r['总转化数'],r['授权数']),note:'(当期+往期)/授权'},
+  {key:'当期转化率',calc:(r)=>R2(r['当期转化数'],r['授权数']),note:'当期/授权'},
+  {key:'往期转化率',calc:(r)=>R2(r['往期转化数'],r['授权数']),note:'往期/授权'},
   {key:'订单成交率',calc:(r)=>R(r['当期转化数'],r['发起支付人数']),note:'当期/发起'},
   {key:'退款率',calc:(r)=>R(r['退款数'],r['当期转化数'],'0'),note:'退款/当期'},
 ];
 function R(num,den,zv){if(!den||den===0)return zv!==undefined?zv:'无';return(Number(num||0)/Number(den)*100).toFixed(1)+'%';}
+function R2(num,den,zv){if(!den||den===0)return zv!==undefined?zv:'无';return(Number(num||0)/Number(den)*100).toFixed(2)+'%';}
 function buildDefaultOrder(){colOrder=[];colVisible={};DIM_KEYS.forEach(k=>{colOrder.push({key:k,type:'dim'});colVisible[k]=true;});ABS_DEFS.forEach(d=>{colOrder.push({key:d.key,type:'abs'});colVisible[d.key]=d.key!=='添加数';});RATE_DEFS.forEach(d=>{colOrder.push({key:d.key,type:'rate',calc:d.calc});colVisible[d.key]=true;});}
 
 // ======== 多选下拉 ========
@@ -390,7 +391,7 @@ function applyDetailFilters(rows){
     return f.op==='gt'?val>=v:val<=v;
   }));
 }
-function renderSummary(rows){const S=k=>rows.reduce((s,r)=>s+(Number(r[k])||0),0);const a=S('授权数'),d=S('添加数'),c=S('开营前流失'),sv=S('问卷数'),g=S('进群数'),p=S('发起支付人数'),cu=S('当期转化数'),o=S('往期转化数'),rf=S('退款数');document.getElementById('cardAuth').textContent=a.toLocaleString();document.getElementById('cardAdd').textContent=d.toLocaleString();document.getElementById('cardR1').textContent=R(d,a);document.getElementById('cardR2').textContent=R(c,d);document.getElementById('cardR3').textContent=R(sv,d);document.getElementById('cardR4').textContent=R(g,d);document.getElementById('cardR5').textContent=R(p,d);document.getElementById('cardR6').textContent=R(cu+o,a);document.getElementById('cardR7').textContent=R(cu,p);document.getElementById('cardR8').textContent=R(rf,cu,'0');}
+function renderSummary(rows){const S=k=>rows.reduce((s,r)=>s+(Number(r[k])||0),0);const a=S('授权数'),d=S('添加数'),c=S('开营前流失'),sv=S('问卷数'),g=S('进群数'),p=S('发起支付人数'),cu=S('当期转化数'),o=S('往期转化数'),rf=S('退款数');document.getElementById('cardAuth').textContent=a.toLocaleString();document.getElementById('cardAdd').textContent=d.toLocaleString();document.getElementById('cardR1').textContent=R(d,a);document.getElementById('cardR2').textContent=R(c,d);document.getElementById('cardR3').textContent=R(sv,d);document.getElementById('cardR4').textContent=R(g,d);document.getElementById('cardR5').textContent=R(p,d);document.getElementById('cardR6').textContent=R2(cu+o,a);document.getElementById('cardR7').textContent=R(cu,p);document.getElementById('cardR8').textContent=R(rf,cu,'0');}
 
 // ======== 明细表格 ========
 let drg=null, sortKey=null, sortDir=-1; // -1=desc, 1=asc
