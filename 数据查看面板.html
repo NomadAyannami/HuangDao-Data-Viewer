@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="zh-CN"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -123,25 +124,25 @@ th.drag-over { border-left:3px solid #1890ff; }
   <button onclick="dimSwitch(5)" style="padding:3px 10px;font-size:12px;border:1px solid #d9d9d9;border-radius:3px;background:#fff;cursor:pointer;">渠道维度</button>
 
 <div class="summary" id="summaryCards">
-  <div class="card abs"><div class="label">📋 授权数</div><div class="value" id="cardAuth">—</div><div class="note">流量入口</div></div>
-  <div class="card abs"><div class="label">➕ 添加数</div><div class="value" id="cardAdd">—</div><div class="note">企业微信添加</div></div>
-  <div class="card rate"><div class="label">添加率</div><div class="value" id="cardR1">—</div><div class="note">添加/授权</div></div>
-  <div class="card rate"><div class="label">开营前流失率</div><div class="value" id="cardR2">—</div><div class="note">流失/添加</div></div>
-  <div class="card rate"><div class="label">问卷率</div><div class="value" id="cardR3">—</div><div class="note">问卷/添加</div></div>
-  <div class="card rate"><div class="label">进群率</div><div class="value" id="cardR4">—</div><div class="note">进群/添加</div></div>
-  <div class="card rate"><div class="label">发起率</div><div class="value" id="cardR5">—</div><div class="note">发起支付/添加</div></div>
-  <div class="card rate"><div class="label">总转化率</div><div class="value" id="cardR6">—</div><div class="note">(当期+往期)/授权</div></div>
-  <div class="card rate"><div class="label">订单成交率</div><div class="value" id="cardR7">—</div><div class="note">当期/发起</div></div>
-  <div class="card rate"><div class="label">退款率</div><div class="value" id="cardR8">—</div><div class="note">退款/当期</div></div>
+  <div class="card abs"><div class="label">📋 授权数</div><div class="value" id="cardAuth">246,583</div><div class="note">流量入口</div></div>
+  <div class="card abs"><div class="label">➕ 添加数</div><div class="value" id="cardAdd">229,607</div><div class="note">企业微信添加</div></div>
+  <div class="card rate"><div class="label">添加率</div><div class="value" id="cardR1">93.1%</div><div class="note">添加/授权</div></div>
+  <div class="card rate"><div class="label">开营前流失率</div><div class="value" id="cardR2">3.2%</div><div class="note">流失/添加</div></div>
+  <div class="card rate"><div class="label">问卷率</div><div class="value" id="cardR3">71.4%</div><div class="note">问卷/添加</div></div>
+  <div class="card rate"><div class="label">进群率</div><div class="value" id="cardR4">79.4%</div><div class="note">进群/添加</div></div>
+  <div class="card rate"><div class="label">发起率</div><div class="value" id="cardR5">9.7%</div><div class="note">发起支付/添加</div></div>
+  <div class="card rate"><div class="label">总转化率</div><div class="value" id="cardR6">4.1%</div><div class="note">(当期+往期)/授权</div></div>
+  <div class="card rate"><div class="label">订单成交率</div><div class="value" id="cardR7">43.9%</div><div class="note">当期/发起</div></div>
+  <div class="card rate"><div class="label">退款率</div><div class="value" id="cardR8">12.5%</div><div class="note">退款/当期</div></div>
 </div>
 
 <div class="table-wrap">
-  <div class="table-toolbar"><h3>📋 明细数据 <span class="table-info" id="tableInfo"></span> <span style="position:relative;display:inline-block"><button class="col-picker-btn df-btn" onclick="toggleDetailFilter(event)">🔽 明细筛选</button><div id="detailFilter" style="display:none;position:absolute;top:100%;left:0;margin-top:4px;background:#fff;border:1px solid #d9d9d9;border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,.12);z-index:50;padding:10px 12px;min-width:280px"></div></span></h3><div style="display:flex;align-items:center;gap:6px;"><select id="presetCols" onchange="applyPreset()" style="padding:4px 8px;border:1px solid #d9d9d9;border-radius:4px;font-size:12px;"><option value="all">全部</option><option value="flow">流量数据</option><option value="live">直播数据</option><option value="conv">转化数据</option></select><button class="col-picker-btn" onclick="openColPicker()">⚙️ 设置展示字段</button><button class="col-picker-btn" onclick="resetColOrder()">↺ 重置字段</button></div></div>
+  <div class="table-toolbar"><h3>📋 明细数据 <span class="table-info" id="tableInfo">共 145 条</span> <span style="position:relative;display:inline-block"><button class="col-picker-btn df-btn" onclick="toggleDetailFilter(event)">🔽 明细筛选</button><div id="detailFilter" style="display:none;position:absolute;top:100%;left:0;margin-top:4px;background:#fff;border:1px solid #d9d9d9;border-radius:6px;box-shadow:0 4px 12px rgba(0,0,0,.12);z-index:50;padding:10px 12px;min-width:280px"></div></span></h3><div style="display:flex;align-items:center;gap:6px;"><select id="presetCols" onchange="applyPreset()" style="padding:4px 8px;border:1px solid #d9d9d9;border-radius:4px;font-size:12px;"><option value="all">全部</option><option value="flow">流量数据</option><option value="live">直播数据</option><option value="conv">转化数据</option></select><button class="col-picker-btn" onclick="openColPicker()">⚙️ 设置展示字段</button><button class="col-picker-btn" onclick="resetColOrder()">↺ 重置字段</button></div></div>
   <div class="table-scroll">
     <table><thead id="tableHead"></thead><tbody id="tableBody"></tbody></table>
 </div>
-  <div id="loadMoreWrap" style="text-align: center; padding: 10px; display: none;"><button onclick="loadMore()" style="padding:6px 24px;border:1px solid #d9d9d9;border-radius:4px;background:#fff;cursor:pointer;font-size:13px;">加载更多...</button></div>
-  <div class="loading" id="loading">加载中...</div>
+  <div id="loadMoreWrap" style="text-align: center; padding: 10px; display: block;"><button onclick="loadMore()" style="padding:6px 24px;border:1px solid #d9d9d9;border-radius:4px;background:#fff;cursor:pointer;font-size:13px;">加载更多... (100/145)</button></div>
+  <div class="loading" id="loading" style="display: none;">加载中...</div>
   <div class="no-data" id="noData" style="display:none">无匹配数据</div>
 </div>
 
@@ -576,15 +577,17 @@ document.addEventListener('click',function(e){if(!e.target.closest('.ms-wrap'))c
 
 // ======== 读取层 ========
 async function loadData(){
-  const r=await fetch('panel_data.json?t='+Date.now(),{cache:'no-store'});
-  if(!r.ok)throw new Error('数据文件加载失败: '+r.status);
-  const rows=await r.json();
-  if(!Array.isArray(rows))throw new Error('数据文件格式错误');
+  const r=await fetch('基础数据汇总_订单已匹配.xlsx?t='+Date.now());
+  if(!r.ok)throw new Error('Excel加载失败: '+r.status);
+  const buf=await r.arrayBuffer();
+  const wb=XLSX.read(buf,{type:'array'});
+  const sheet=wb.Sheets[wb.SheetNames[0]];
+  const rows=XLSX.utils.sheet_to_json(sheet,{defval:''});
   return rows;
 }
 
 // ======== 初始化 ========
-async function init(){try{allData=await loadData();buildDefaultOrder();initMS();initDetailFilter();document.getElementById('headerMeta').textContent=allData.length.toLocaleString()+' 条记录 | '+[...new Set(allData.map(r=>r['运营期数']))].length+' 个期数';applyFilters();}catch(e){document.getElementById('loading').textContent='数据加载失败: '+e.message;document.getElementById('loading').style.display='block';document.getElementById('headerMeta').textContent='数据不可用';}}
+async function init(){try{allData=await loadData();buildDefaultOrder();initMS();initDetailFilter();document.getElementById('headerMeta').textContent=allData.length.toLocaleString()+' 条记录 | '+[...new Set(allData.map(r=>r['运营期数']))].length+' 个期数';applyFilters();}catch(e){document.getElementById('loading').textContent='数据加载失败: '+e.message;}}
 init();
 </script>
 
