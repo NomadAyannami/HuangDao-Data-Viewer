@@ -31,7 +31,7 @@ def update_json():
     rows = read_rows()
     body = json.dumps(rows, ensure_ascii=False, default=str, separators=(",", ":")).encode("utf-8")
     if OUTPUT_FILE.is_file() and OUTPUT_FILE.read_bytes() == body:
-        print(f"数据未变化：{len(rows)} 条记录")
+        print(f"Data unchanged: {len(rows)} rows")
         return
 
     temporary_file = OUTPUT_FILE.with_suffix(".json.tmp")
@@ -40,10 +40,10 @@ def update_json():
         os.replace(temporary_file, OUTPUT_FILE)
     finally:
         temporary_file.unlink(missing_ok=True)
-    print(f"已更新 {OUTPUT_FILE.name}：{len(rows)} 条记录")
+    print(f"Updated {OUTPUT_FILE.name}: {len(rows)} rows")
 
 
 if __name__ == "__main__":
     if not DATA_FILE.is_file():
-        raise SystemExit(f"找不到本地数据源: {DATA_FILE}")
+        raise SystemExit(f"Data source not found: {DATA_FILE}")
     update_json()

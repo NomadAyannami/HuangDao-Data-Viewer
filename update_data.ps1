@@ -2,36 +2,36 @@ $ErrorActionPreference = 'Stop'
 Set-Location -LiteralPath $PSScriptRoot
 
 $branch = (& git branch --show-current).Trim()
-if ($LASTEXITCODE -ne 0 -or $branch -ne 'main') { throw '请在 main 分支运行更新脚本' }
+if ($LASTEXITCODE -ne 0 -or $branch -ne 'main') { throw 'Run this script on the main branch' }
 & git fetch origin main
-if ($LASTEXITCODE -ne 0) { throw '无法检查 GitHub 上的 main 分支' }
+if ($LASTEXITCODE -ne 0) { throw 'Could not fetch origin/main' }
 $localCommit = (& git rev-parse HEAD).Trim()
 $remoteCommit = (& git rev-parse origin/main).Trim()
-if ($localCommit -ne $remoteCommit) { throw '本地 main 与 GitHub 不一致，请先同步代码' }
+if ($localCommit -ne $remoteCommit) { throw 'Local main differs from origin/main; sync code first' }
 
 $venv = Join-Path $PSScriptRoot '.venv'
 $venvPython = Join-Path $venv 'Scripts\python.exe'
 if (-not (Test-Path -LiteralPath $venvPython)) {
     $python = Get-Command python -ErrorAction Stop
     & $python.Source -m venv $venv
-    if ($LASTEXITCODE -ne 0) { throw '创建 Python 环境失败' }
+    if ($LASTEXITCODE -ne 0) { throw 'Could not create Python environment' }
 }
 & $venvPython -m pip install -r (Join-Path $PSScriptRoot 'requirements.txt')
-if ($LASTEXITCODE -ne 0) { throw '安装 Python 依赖失败' }
+if ($LASTEXITCODE -ne 0) { throw 'Could not install Python dependencies' }
 & $venvPython (Join-Path $PSScriptRoot 'update_data.py')
-if ($LASTEXITCODE -ne 0) { throw '更新 JSON 失败' }
+if ($LASTEXITCODE -ne 0) { throw 'Could not update JSON' }
 
 & git add -- panel_data.json
-if ($LASTEXITCODE -ne 0) { throw '暂存 JSON 失败' }
+if ($LASTEXITCODE -ne 0) { throw 'Could not stage JSON' }
 & git diff --cached --quiet -- panel_data.json
 if ($LASTEXITCODE -eq 0) {
-    Write-Output 'JSON 未变化，无需推送'
+    Write-Output 'JSON unchanged; nothing to push'
     return
 }
-if ($LASTEXITCODE -ne 1) { throw '检查 JSON 变化失败' }
+if ($LASTEXITCODE -ne 1) { throw 'Could not check JSON changes' }
 
 & git commit --only -m 'Update dashboard data' -- panel_data.json
-if ($LASTEXITCODE -ne 0) { throw '提交 JSON 失败' }
+if ($LASTEXITCODE -ne 0) { throw 'Could not commit JSON' }
 & git push origin main
-if ($LASTEXITCODE -ne 0) { throw '推送 JSON 失败，提交已留在本地' }
-Write-Output 'JSON 已更新并推送到 GitHub'
+if ($LASTEXITCODE -ne 0) { throw 'Could not push JSON; commit remains local' }
+Write-Output 'JSON updated and pushed to GitHub'
