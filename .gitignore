@@ -1,2 +1,5 @@
 _panel_data.json
+/基础数据汇总_订单已匹配.xlsx
+.venv/
+__pycache__/
 # trigger rebuild
