@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="zh-CN"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<script src="https://lf1-cdn-tos.bytegoofy.com/goofy/ee/lark/h5jssdk/lark/js_sdk/h5-js-sdk-1.5.11.js"></script>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.0/package/dist/xlsx.full.min.js"></script>
 <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
 
@@ -8,6 +9,9 @@
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
 body { font-family: -apple-system, "Microsoft YaHei", sans-serif; background:#f0f2f5; color:#333; }
+body:not(.feishu-verified) > :not(#accessGate) { display:none !important; }
+#accessGate { min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px; text-align:center; color:#666; font-size:16px; }
+body.feishu-verified #accessGate { display:none; }
 .header { background:linear-gradient(135deg,#1a1a2e,#16213e); color:#fff; padding:14px 24px; display:flex; align-items:center; justify-content:space-between; }
 .header h1 { font-size:20px; font-weight:600; }
 .header .meta { font-size:13px; opacity:.7; }
@@ -97,6 +101,7 @@ th.drag-over { border-left:3px solid #1890ff; }
 </style>
 </head>
 <body>
+<div id="accessGate" role="status">请从飞书工作台打开</div>
 
 <div class="header"><h1>📊 数据查看面板</h1><span class="meta" id="headerMeta">5,791 条记录 | 27 个期数</span></div>
 
@@ -588,7 +593,11 @@ async function loadData(){
 
 // ======== 初始化 ========
 async function init(){try{allData=await loadData();buildDefaultOrder();initMS();initDetailFilter();document.getElementById('headerMeta').textContent=allData.length.toLocaleString()+' 条记录 | '+[...new Set(allData.map(r=>r['运营期数']))].length+' 个期数';applyFilters();}catch(e){document.getElementById('loading').textContent='数据加载失败: '+e.message;}}
-init();
+// 飞书内嵌网页才初始化面板；普通浏览器不发起数据请求。
+if (window.h5sdk && window.tt) {
+  document.body.classList.add('feishu-verified');
+  init();
+}
 </script>
 
 
