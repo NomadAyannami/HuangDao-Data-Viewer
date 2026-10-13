@@ -647,6 +647,8 @@ async function init(){try{allData=await loadData();prepareRowColors(allData);bui
 if (window.h5sdk && window.tt) {
   document.body.classList.add('feishu-verified');
   init();
+} else if (window.location.hostname === 'nomadayannami.github.io') {
+  window.location.replace('https://nomadayannami.github.io/');
 }
 </script>
 
