@@ -632,25 +632,31 @@ tableScroll.addEventListener('lostpointercapture',endTablePan);
 
 // ======== 读取层 ========
 async function loadData(){
-  const encodedKey=sessionStorage.getItem('huangdao_data_key_v1');
-  sessionStorage.removeItem('huangdao_data_key_v1');
-  if(!encodedKey)throw new Error('缺少临时密钥，请从飞书工作台重新打开');
-  if(!window.crypto || !window.crypto.subtle)throw new Error('当前浏览器不支持数据解密');
-  const r=await fetch('基础数据汇总_订单已匹配.xlsx.enc?t='+Date.now());
-  if(!r.ok)throw new Error('加密数据加载失败: '+r.status);
-  const encrypted=new Uint8Array(await r.arrayBuffer());
-  if(encrypted.length<32 || new TextDecoder().decode(encrypted.subarray(0,4))!=='HDE1')throw new Error('加密数据格式错误');
-  const keyBytes=Uint8Array.from(atob(encodedKey),c=>c.charCodeAt(0));
-  if(keyBytes.length!==32)throw new Error('临时密钥格式错误');
-  const key=await window.crypto.subtle.importKey('raw',keyBytes,{name:'AES-GCM'},false,['decrypt']);
-  keyBytes.fill(0);
-  const buf=await window.crypto.subtle.decrypt({name:'AES-GCM',iv:encrypted.slice(4,16)},key,encrypted.slice(16));
+  let buf;
+  if(window.location.hostname==='nomadayannami.github.io'){
+    const encodedKey=sessionStorage.getItem('huangdao_data_key_v1');
+    sessionStorage.removeItem('huangdao_data_key_v1');
+    if(!encodedKey)throw new Error('缺少临时密钥，请从飞书工作台重新打开');
+    if(!window.crypto || !window.crypto.subtle)throw new Error('当前浏览器不支持数据解密');
+    const r=await fetch('基础数据汇总_订单已匹配.xlsx.enc?t='+Date.now());
+    if(!r.ok)throw new Error('加密数据加载失败: '+r.status);
+    const encrypted=new Uint8Array(await r.arrayBuffer());
+    if(encrypted.length<32 || new TextDecoder().decode(encrypted.subarray(0,4))!=='HDE1')throw new Error('加密数据格式错误');
+    const keyBytes=Uint8Array.from(atob(encodedKey),c=>c.charCodeAt(0));
+    if(keyBytes.length!==32)throw new Error('临时密钥格式错误');
+    const key=await window.crypto.subtle.importKey('raw',keyBytes,{name:'AES-GCM'},false,['decrypt']);
+    keyBytes.fill(0);
+    buf=await window.crypto.subtle.decrypt({name:'AES-GCM',iv:encrypted.slice(4,16)},key,encrypted.slice(16));
+  }else{
+    const r=await fetch('基础数据汇总_订单已匹配.xlsx?t='+Date.now());
+    if(!r.ok)throw new Error('Excel加载失败: '+r.status);
+    buf=await r.arrayBuffer();
+  }
   const wb=XLSX.read(buf,{type:'array'});
   const sheet=wb.Sheets[wb.SheetNames[0]];
   const rows=XLSX.utils.sheet_to_json(sheet,{defval:''});
   return rows;
 }
-
 // ======== 初始化 ========
 async function init(){try{allData=await loadData();prepareRowColors(allData);buildDefaultOrder();initMS();initDetailFilter();document.getElementById('headerMeta').textContent=allData.length.toLocaleString()+' 条记录 | '+[...new Set(allData.map(r=>r['运营期数']))].length+' 个期数';applyFilters();}catch(e){document.getElementById('loading').textContent='数据加载失败: '+e.message;}}
 // 飞书内嵌网页才初始化面板；普通浏览器不发起数据请求。
