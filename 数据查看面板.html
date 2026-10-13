@@ -595,7 +595,7 @@ function applyColPicker(){document.querySelectorAll('#colModalBody input[type=ch
 document.getElementById('colModal').addEventListener('click',function(e){if(e.target===this)closeColPicker();});
 document.addEventListener('click',function(e){if(!e.target.closest('.ms-wrap'))closeAll();if(!e.target.closest('#detailFilter')&&!e.target.closest('.df-btn')){document.getElementById('detailFilter').style.display='none';}});
 
-// 在明细表右侧数据区按住鼠标横向拖动；固定列和表头保持原有操作。
+// 在明细表右侧数据区按住鼠标双向拖动；固定列和表头保持原有操作。
 const tableScroll=document.querySelector('.table-scroll');
 let tablePan=null;
 function endTablePan(e){
@@ -607,22 +607,22 @@ function endTablePan(e){
 }
 tableScroll.addEventListener('pointerdown',function(e){
   if(e.pointerType!=='mouse'||e.button!==0||!e.isPrimary||tablePan)return;
-  if(tableScroll.scrollWidth<=tableScroll.clientWidth)return;
+  if(tableScroll.scrollWidth<=tableScroll.clientWidth&&tableScroll.scrollHeight<=tableScroll.clientHeight)return;
   if(!e.target.closest('#tableBody td:not(.sticky-left)')&&e.target!==tableScroll)return;
-  tablePan={id:e.pointerId,x:e.clientX,y:e.clientY,left:tableScroll.scrollLeft,active:false};
+  tablePan={id:e.pointerId,x:e.clientX,y:e.clientY,left:tableScroll.scrollLeft,top:tableScroll.scrollTop,active:false};
 });
 window.addEventListener('pointermove',function(e){
   if(!tablePan||e.pointerId!==tablePan.id)return;
   const dx=e.clientX-tablePan.x,dy=e.clientY-tablePan.y;
   if(!tablePan.active){
     if(Math.abs(dx)<6&&Math.abs(dy)<6)return;
-    if(Math.abs(dx)<=Math.abs(dy)){endTablePan();return;}
     tablePan.active=true;
     tableScroll.classList.add('drag-panning');
     tableScroll.setPointerCapture(e.pointerId);
     window.getSelection()?.removeAllRanges();
   }
   tableScroll.scrollLeft=tablePan.left-dx;
+  tableScroll.scrollTop=tablePan.top-dy;
   e.preventDefault();
 });
 window.addEventListener('pointerup',endTablePan);
