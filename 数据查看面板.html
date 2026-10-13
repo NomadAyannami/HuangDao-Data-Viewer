@@ -634,9 +634,9 @@ tableScroll.addEventListener('lostpointercapture',endTablePan);
 async function loadData(){
   let buf;
   if(window.location.hostname==='nomadayannami.github.io'){
-    const encodedKey=sessionStorage.getItem('huangdao_data_key_v1');
-    sessionStorage.removeItem('huangdao_data_key_v1');
-    if(!encodedKey){
+    const encodedParts=sessionStorage.getItem('huangdao_data_parts_v2');
+    sessionStorage.removeItem('huangdao_data_parts_v2');
+    if(!encodedParts){
       window.location.replace('https://nomadayannami.github.io/');
       throw new Error('正在返回验证入口');
     }
@@ -645,8 +645,17 @@ async function loadData(){
     if(!r.ok)throw new Error('加密数据加载失败: '+r.status);
     const encrypted=new Uint8Array(await r.arrayBuffer());
     if(encrypted.length<32 || new TextDecoder().decode(encrypted.subarray(0,4))!=='HDE1')throw new Error('加密数据格式错误');
-    const keyBytes=Uint8Array.from(atob(encodedKey),c=>c.charCodeAt(0));
-    if(keyBytes.length!==32)throw new Error('临时密钥格式错误');
+    let parts;
+    try{parts=JSON.parse(encodedParts)}catch(e){throw new Error('临时密钥片段格式错误')}
+    if(!Array.isArray(parts)||parts.length!==4)throw new Error('临时密钥片段格式错误');
+    const keyBytes=new Uint8Array(32);
+    for(const encoded of parts){
+      const part=Uint8Array.from(atob(encoded),c=>c.charCodeAt(0));
+      if(part.length!==32)throw new Error('临时密钥片段格式错误');
+      for(let i=0;i<32;i++)keyBytes[i]^=part[i];
+      part.fill(0);
+    }
+    parts.fill('');
     const key=await window.crypto.subtle.importKey('raw',keyBytes,{name:'AES-GCM'},false,['decrypt']);
     keyBytes.fill(0);
     buf=await window.crypto.subtle.decrypt({name:'AES-GCM',iv:encrypted.slice(4,16)},key,encrypted.slice(16));
