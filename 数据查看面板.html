@@ -58,7 +58,7 @@ body.feishu-verified #accessGate { display:none; }
 .table-toolbar { padding:12px 20px; border-bottom:1px solid #f0f0f0; display:flex; align-items:center; justify-content:space-between; }
 .table-toolbar h3 { font-size:15px; color:#1a1a2e; }
 .table-toolbar .table-info { font-size:12px; color:#999; font-weight:400; }
-.table-scroll { overflow:auto; }
+.table-scroll { overflow:auto; max-height:70vh; overscroll-behavior-y:contain; }
 .table-scroll #tableBody td:not(.sticky-left) { cursor:grab; }
 .table-scroll.drag-panning, .table-scroll.drag-panning #tableBody td { cursor:grabbing; user-select:none; }
 .table-scroll::-webkit-scrollbar { width:10px; height:10px; }
@@ -597,7 +597,6 @@ document.addEventListener('click',function(e){if(!e.target.closest('.ms-wrap'))c
 
 // 在明细表右侧数据区按住鼠标双向拖动；固定列和表头保持原有操作。
 const tableScroll=document.querySelector('.table-scroll');
-const pageScroll=document.scrollingElement||document.documentElement;
 let tablePan=null;
 function endTablePan(e){
   if(!tablePan||(e&&e.pointerId!==undefined&&e.pointerId!==tablePan.id))return;
@@ -608,9 +607,9 @@ function endTablePan(e){
 }
 tableScroll.addEventListener('pointerdown',function(e){
   if(e.pointerType!=='mouse'||e.button!==0||!e.isPrimary||tablePan)return;
-  if(tableScroll.scrollWidth<=tableScroll.clientWidth&&pageScroll.scrollHeight<=pageScroll.clientHeight)return;
+  if(tableScroll.scrollWidth<=tableScroll.clientWidth&&tableScroll.scrollHeight<=tableScroll.clientHeight)return;
   if(!e.target.closest('#tableBody td:not(.sticky-left)')&&e.target!==tableScroll)return;
-  tablePan={id:e.pointerId,x:e.clientX,y:e.clientY,left:tableScroll.scrollLeft,top:pageScroll.scrollTop,active:false};
+  tablePan={id:e.pointerId,x:e.clientX,y:e.clientY,left:tableScroll.scrollLeft,top:tableScroll.scrollTop,active:false};
 });
 window.addEventListener('pointermove',function(e){
   if(!tablePan||e.pointerId!==tablePan.id)return;
@@ -623,7 +622,7 @@ window.addEventListener('pointermove',function(e){
     window.getSelection()?.removeAllRanges();
   }
   tableScroll.scrollLeft=tablePan.left-dx;
-  pageScroll.scrollTop=tablePan.top-dy;
+  tableScroll.scrollTop=tablePan.top-dy;
   e.preventDefault();
 });
 window.addEventListener('pointerup',endTablePan);
