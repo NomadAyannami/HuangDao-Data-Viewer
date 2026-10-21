@@ -309,7 +309,7 @@ function setDownAgg(id){
 function cmpP(a,b){const na=parseInt(a)||0,nb=parseInt(b)||0;if(na!==nb)return na-nb;return(a||'').localeCompare(b||'');}
 
 function initMS(){
-  createMS('Month',[...new Set(allData.map(r=>r['运营月份']))].sort().reverse());
+  createMS('Month',[...new Set(allData.map(r=>r['运营月份']))].sort((a,b)=>String(b??'').localeCompare(String(a??''),'zh',{numeric:true})));
   createMS('Period',[...new Set(allData.map(r=>r['运营期数']))].sort((a,b)=>cmpP(b,a)));
   createMS('Subject',[...new Set(allData.map(r=>r['主体']))].sort((a,b)=>a.localeCompare(b,'zh')));
   createMS('Group',[...new Set(allData.map(r=>r['小组']))].sort((a,b)=>a.localeCompare(b,'zh')));
@@ -351,7 +351,7 @@ function getFilteredData(){
     r=Object.values(grp);
   }
   
-  return [...r].sort((a,b)=>{const p=cmpP(b['运营期数'],a['运营期数']);if(p)return p;return -(a['运营月份']||'').localeCompare(b['运营月份']||'');});
+  return [...r].sort((a,b)=>{const p=cmpP(b['运营期数'],a['运营期数']);if(p)return p;return -(a['运营月份']||'').localeCompare(b['运营月份']||'','zh',{numeric:true});});
 }
 function applyFilters(){const data=getFilteredData();renderSummary(data);renderTable(applyDetailFilters(data));}
 // ======== 明细筛选 ========
