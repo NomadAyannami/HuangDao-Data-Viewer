@@ -471,7 +471,7 @@ function renderHeader(cols){
   const isSortable=k=>SORTABLE_KEYS.has(k);
   const stickyKeys=DIM_KEYS.length+ABS_DEFS.filter(d=>colVisible[d.key]).length;
   
-  document.getElementById('tableHead').innerHTML='<tr>'+cols.map((c,i)=>{
+  document.getElementById('tableHead').innerHTML='<tr><th class="sticky-left">序号</th>'+cols.map((c,i)=>{
     let cls='',ext='';
     if(isSticky(c.key)){
       cls='sticky-left';
@@ -492,9 +492,9 @@ function appendPage(){
   const isSticky=k=>DIM_KEYS.includes(k)||ABS_DEFS.some(d=>d.key===k);
   const stickyKeys=DIM_KEYS.length+ABS_DEFS.filter(d=>colVisible[d.key]).length;
   
-  const html=slice.map(r=>{
+  const html=slice.map((r,rowIndex)=>{
     const tint=subjectTints.get(String(r['主体']??'').trim());
-    return '<tr'+(tint?' class="subject-tinted" style="--subject-tint:'+tint+'"':'')+'>'+cols.map((c,i)=>{
+    return '<tr'+(tint?' class="subject-tinted" style="--subject-tint:'+tint+'"':'')+'><td class="sticky-left">'+(pageOffset+rowIndex+1)+'</td>'+cols.map((c,i)=>{
     let cls=isSticky(c.key)?(i===stickyKeys-1?'sticky-left sticky-last':'sticky-left'):'';
     let v;if(c.type==='rate')v=c.calc(r);else v=r[c.key]??'';
     if(c.key==='小组'||c.key==='渠道来源'){
