@@ -14,12 +14,6 @@ body:not(.feishu-verified) > :not(#accessGate) { display:none !important; }
 body.feishu-verified #accessGate { display:none; }
 .header { background:linear-gradient(135deg,#1a1a2e,#16213e); color:#fff; padding:14px 24px; display:flex; align-items:center; justify-content:space-between; }
 .header h1 { font-size:20px; font-weight:600; }
-.header-title { display:flex; align-items:center; gap:16px; }
-.source-switch { display:inline-flex; border:1px solid rgba(255,255,255,.35); border-radius:5px; overflow:hidden; }
-.source-switch button { padding:5px 12px; border:0; background:transparent; color:#fff; font-size:13px; cursor:pointer; }
-.source-switch button[aria-pressed="true"] { background:#1890ff; }
-.source-switch button:disabled { cursor:wait; opacity:.65; }
-#sourceStatus { font-size:12px; font-weight:400; }
 .header .meta { font-size:13px; opacity:.7; }
 
 .filter-bar { background:#fff; padding:10px 24px; display:flex; gap:8px; flex-wrap:wrap; align-items:center; border-bottom:1px solid #e8e8e8; }
@@ -113,7 +107,7 @@ th.drag-over { border-left:3px solid #1890ff; }
 <body>
 <div id="accessGate" role="status">请从飞书工作台打开</div>
 
-<div class="header"><div class="header-title"><h1>📊 数据查看面板</h1><div class="source-switch" role="group" aria-label="切换数据源"><button type="button" data-source="11" aria-pressed="true" onclick="switchDataSource('11')" disabled>11元</button><button type="button" data-source="0" aria-pressed="false" onclick="switchDataSource('0')" disabled>0元</button></div><span id="sourceStatus" role="status"></span></div><span class="meta" id="headerMeta">5,791 条记录 | 27 个期数</span></div>
+<div class="header"><h1>📊 数据查看面板</h1><span class="meta" id="headerMeta">5,791 条记录 | 27 个期数</span></div>
 
 <div class="filter-bar">
   <label>月份</label><div class="ms-wrap" id="msMonth"><div class="ms-btn">全部 <span class="arrow">▼</span></div><div class="ms-drop" id="dropMonth"><div class="ms-actions"><label class="ms-all"><input type="checkbox" onchange="toggleAll(&#39;Month&#39;,this.checked)"> 全选</label></div><div class="ms-agg"><label><input type="checkbox" onchange="toggleAgg(&#39;Month&#39;,this.checked)"> 汇总</label></div><div class="ms-items"><label><input type="checkbox" value="26年7月">26年7月</label><label><input type="checkbox" value="26年6月">26年6月</label><label><input type="checkbox" value="26年5月">26年5月</label><label><input type="checkbox" value="26年4月">26年4月</label><label><input type="checkbox" value="26年3月">26年3月</label><label><input type="checkbox" value="26年2月">26年2月</label><label><input type="checkbox" value="26年1月">26年1月</label></div><div style="padding: 6px 10px; border-top: 1px solid rgb(224, 224, 224); text-align: center; background: rgb(255, 255, 255);"><button onclick="event.stopPropagation();MS[&#39;Month&#39;].drop.classList.remove(&#39;show&#39;)" style="padding:3px 20px;font-size:12px;border-radius:3px;border:1px solid #d9d9d9;background:#fff;cursor:pointer;color:#333;">关闭</button></div></div></div>
@@ -637,10 +631,9 @@ window.addEventListener('blur',endTablePan);
 tableScroll.addEventListener('lostpointercapture',endTablePan);
 
 // ======== 读取层 ========
-const DATA_FILES={'11':'11元基础数据汇总_订单已匹配.xlsx','0':'0元基础数据汇总_订单已匹配.xlsx'};
-let currentDataSource='11',dataSourceBusy=true,dataDecryptKey=null;
-async function getDataDecryptKey(){
-    if(dataDecryptKey)return dataDecryptKey;
+async function loadData(){
+  let buf;
+  if(window.location.hostname==='nomadayannami.github.io'){
     const encodedParts=sessionStorage.getItem('huangdao_data_parts_v2');
     sessionStorage.removeItem('huangdao_data_parts_v2');
     if(!encodedParts){
@@ -648,6 +641,10 @@ async function getDataDecryptKey(){
       throw new Error('正在返回验证入口');
     }
     if(!window.crypto || !window.crypto.subtle)throw new Error('当前浏览器不支持数据解密');
+    const r=await fetch('11元基础数据汇总_订单已匹配.xlsx.enc?t='+Date.now());
+    if(!r.ok)throw new Error('加密数据加载失败: '+r.status);
+    const encrypted=new Uint8Array(await r.arrayBuffer());
+    if(encrypted.length<32 || new TextDecoder().decode(encrypted.subarray(0,4))!=='HDE1')throw new Error('加密数据格式错误');
     let parts;
     try{parts=JSON.parse(encodedParts)}catch(e){throw new Error('临时密钥片段格式错误')}
     if(!Array.isArray(parts)||parts.length!==4)throw new Error('临时密钥片段格式错误');
@@ -659,23 +656,11 @@ async function getDataDecryptKey(){
       part.fill(0);
     }
     parts.fill('');
-    dataDecryptKey=await window.crypto.subtle.importKey('raw',keyBytes,{name:'AES-GCM'},false,['decrypt']);
+    const key=await window.crypto.subtle.importKey('raw',keyBytes,{name:'AES-GCM'},false,['decrypt']);
     keyBytes.fill(0);
-    return dataDecryptKey;
-}
-async function loadData(source='11'){
-  const file=DATA_FILES[source];
-  if(!file)throw new Error('未知数据源');
-  let buf;
-  if(window.location.hostname==='nomadayannami.github.io'){
-    const key=await getDataDecryptKey();
-    const r=await fetch(file+'.enc?t='+Date.now());
-    if(!r.ok)throw new Error('加密数据加载失败: '+r.status);
-    const encrypted=new Uint8Array(await r.arrayBuffer());
-    if(encrypted.length<32 || new TextDecoder().decode(encrypted.subarray(0,4))!=='HDE1')throw new Error('加密数据格式错误');
     buf=await window.crypto.subtle.decrypt({name:'AES-GCM',iv:encrypted.slice(4,16)},key,encrypted.slice(16));
   }else{
-    const r=await fetch(file+'?t='+Date.now());
+    const r=await fetch('11元基础数据汇总_订单已匹配.xlsx?t='+Date.now());
     if(!r.ok)throw new Error('Excel加载失败: '+r.status);
     buf=await r.arrayBuffer();
   }
@@ -684,30 +669,8 @@ async function loadData(source='11'){
   const rows=XLSX.utils.sheet_to_json(sheet,{defval:''});
   return rows;
 }
-function setDataSourceBusy(busy){
-  dataSourceBusy=busy;
-  document.querySelectorAll('.source-switch button').forEach(btn=>{
-    btn.disabled=busy;
-    btn.setAttribute('aria-pressed',String(btn.dataset.source===currentDataSource));
-  });
-}
-function showData(rows){
-  allData=rows;prepareRowColors(allData);detailFilters=[];initMS();initDetailFilter();
-  document.getElementById('headerMeta').textContent=allData.length.toLocaleString()+' 条记录 | '+[...new Set(allData.map(r=>r['运营期数']))].length+' 个期数';
-  applyFilters();
-}
-async function switchDataSource(source){
-  if(dataSourceBusy||source===currentDataSource)return;
-  setDataSourceBusy(true);
-  const status=document.getElementById('sourceStatus');status.textContent='加载中…';
-  try{
-    const rows=await loadData(source);
-    showData(rows);currentDataSource=source;status.textContent='';
-  }catch(e){status.textContent='切换失败：'+e.message;}
-  finally{setDataSourceBusy(false);}
-}
 // ======== 初始化 ========
-async function init(){try{const rows=await loadData();buildDefaultOrder();showData(rows);}catch(e){document.getElementById('loading').textContent='数据加载失败: '+e.message;}finally{setDataSourceBusy(false);}}
+async function init(){try{allData=await loadData();prepareRowColors(allData);buildDefaultOrder();initMS();initDetailFilter();document.getElementById('headerMeta').textContent=allData.length.toLocaleString()+' 条记录 | '+[...new Set(allData.map(r=>r['运营期数']))].length+' 个期数';applyFilters();}catch(e){document.getElementById('loading').textContent='数据加载失败: '+e.message;}}
 // 飞书内嵌网页才初始化面板；普通浏览器不发起数据请求。
 if (window.h5sdk && window.tt) {
   document.body.classList.add('feishu-verified');
