@@ -146,6 +146,7 @@ th.drag-over { border-left:3px solid #1890ff; }
   <div class="card rate"><div class="label">开营前流失率</div><div class="value" id="cardR2">3.2%</div><div class="note">流失/添加</div></div>
   <div class="card rate"><div class="label">问卷率</div><div class="value" id="cardR3">71.4%</div><div class="note">问卷/添加</div></div>
   <div class="card rate"><div class="label">进群率</div><div class="value" id="cardR4">79.4%</div><div class="note">进群/添加</div></div>
+  <div class="card rate"><div class="label">主动添加率</div><div class="value" id="cardActiveAddRate">无</div><div class="note">主动添加/授权</div></div>
   <div class="card rate"><div class="label">发起率</div><div class="value" id="cardR5">9.7%</div><div class="note">发起支付/添加</div></div>
   <div class="card rate"><div class="label">总转化率</div><div class="value" id="cardR6">4.1%</div><div class="note" id="cardR6Note">(当期+往期)/授权</div></div>
   <div class="card rate"><div class="label">订单成交率</div><div class="value" id="cardR7">43.9%</div><div class="note">当期/发起</div></div>
@@ -187,6 +188,7 @@ const RATE_DEFS=[
   {key:'开营前流失率',calc:(r)=>R(r['开营前流失'],r['添加数']),note:'流失/添加'},
   {key:'问卷率',calc:(r)=>R(r['问卷数'],r['添加数']),note:'问卷/添加'},
   {key:'进群率',calc:(r)=>R(r['进群数'],r['添加数']),note:'进群/添加'},
+  {key:'主动添加率',calc:(r)=>R(r['主动添加数'],r['授权数']),note:'主动添加/授权'},
   {key:'D1到课率',calc:(r)=>R(r['D1到课数'],r['添加数']),note:'D1到课/添加'},
   {key:'D1完课率',calc:(r)=>R(r['D1完课数'],r['D1到课数']),note:'D1完课/D1到课'},
   {key:'D2到课率',calc:(r)=>R(r['D2到课数'],r['添加数']),note:'D2到课/添加'},
@@ -356,7 +358,7 @@ function getFilteredData(){
   const DIM_TO_MS={'运营月份':'Month','运营期数':'Period','主体':'Subject','小组':'Group','运营':'Operator','渠道来源':'Channel'};
   const aggFields=DIM_KEYS.filter(k=>MS[DIM_TO_MS[k]]&&MS[DIM_TO_MS[k]].agg);
   if(aggFields.length){
-    const NUM_KEYS=[...ABS_DEFS.map(d=>d.key),'开营前流失','问卷数','进群数','D1到课数','D1完课数','D2到课数','D2完课数','D3到课数','D3完课数','D4到课数','D4完课数','D5到课数','D5完课数','发起支付人数','总转化数','当期转化数','往期转化数','退款数'];
+    const NUM_KEYS=[...ABS_DEFS.map(d=>d.key),'开营前流失','问卷数','进群数','主动添加数','D1到课数','D1完课数','D2到课数','D2完课数','D3到课数','D3完课数','D4到课数','D4完课数','D5到课数','D5完课数','发起支付人数','总转化数','当期转化数','往期转化数','退款数'];
     const grp={};
     r.forEach(row=>{
       const key=DIM_KEYS.map(k=>aggFields.includes(k)?'':(row[k]||'')).join('|||');
@@ -416,7 +418,7 @@ function applyDetailFilters(rows){
     return f.op==='gt'?val>=v:val<=v;
   }));
 }
-function renderSummary(rows){const S=k=>rows.reduce((s,r)=>s+(Number(r[k])||0),0);const a=S('授权数'),d=S('添加数'),c=S('开营前流失'),sv=S('问卷数'),g=S('进群数'),p=S('发起支付人数'),cu=S('当期转化数'),o=S('往期转化数'),rf=S('退款数');document.getElementById('cardAuth').textContent=a.toLocaleString();document.getElementById('cardAdd').textContent=d.toLocaleString();document.getElementById('cardR1').textContent=R(d,a);document.getElementById('cardR2').textContent=R(c,d);document.getElementById('cardR3').textContent=R(sv,d);document.getElementById('cardR4').textContent=R(g,d);document.getElementById('cardR5').textContent=R(p,d);document.getElementById('cardR6').textContent=conversionRate({'总转化数':cu+o,'授权数':a,'添加数':d},'总转化数');document.getElementById('cardR6Note').textContent=conversionNote('(当期+往期)');document.getElementById('cardR7').textContent=R(cu,p);document.getElementById('cardR8').textContent=R(rf,cu,'0');}
+function renderSummary(rows){const S=k=>rows.reduce((s,r)=>s+(Number(r[k])||0),0);const a=S('授权数'),d=S('添加数'),c=S('开营前流失'),sv=S('问卷数'),g=S('进群数'),p=S('发起支付人数'),cu=S('当期转化数'),o=S('往期转化数'),rf=S('退款数');document.getElementById('cardAuth').textContent=a.toLocaleString();document.getElementById('cardAdd').textContent=d.toLocaleString();document.getElementById('cardR1').textContent=R(d,a);document.getElementById('cardR2').textContent=R(c,d);document.getElementById('cardR3').textContent=R(sv,d);document.getElementById('cardR4').textContent=R(g,d);document.getElementById('cardActiveAddRate').textContent=R(S('主动添加数'),a);document.getElementById('cardR5').textContent=R(p,d);document.getElementById('cardR6').textContent=conversionRate({'总转化数':cu+o,'授权数':a,'添加数':d},'总转化数');document.getElementById('cardR6Note').textContent=conversionNote('(当期+往期)');document.getElementById('cardR7').textContent=R(cu,p);document.getElementById('cardR8').textContent=R(rf,cu,'0');}
 
 // ======== 明细表格 ========
 let drg=null, sortKey=null, sortDir=-1; // -1=desc, 1=asc
@@ -597,7 +599,7 @@ function applyPreset(){
   RATE_DEFS.forEach(d=>colVisible[d.key]=false);
   if(v==='all'||!v){RATE_DEFS.forEach(d=>colVisible[d.key]=true);}
   else if(v==='flow'){
-    ['添加率','开营前流失率','问卷率','进群率'].forEach(k=>colVisible[k]=true);
+    ['添加率','开营前流失率','问卷率','进群率','主动添加率'].forEach(k=>colVisible[k]=true);
   }else if(v==='live'){
     RATE_DEFS.filter(d=>d.key.includes('D')).forEach(d=>colVisible[d.key]=true);
   }else if(v==='conv'){
