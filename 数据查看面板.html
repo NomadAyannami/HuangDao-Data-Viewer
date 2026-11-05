@@ -122,6 +122,9 @@ th.drag-over { border-left:3px solid #1890ff; }
 #chartModal select { display:block; width:100%; margin-top:7px; padding:8px; font-size:13px; border:1px solid #d9d9d9; border-radius:5px; background:white; color:#333; }
 #chartModal .chart-metrics { margin-top:8px; }
 #chartModal .chart-metrics label { display:flex; gap:8px; align-items:center; padding:7px 0; font-size:13px; cursor:pointer; }
+#chartModal .chart-line-options { max-height:180px; overflow:auto; padding:6px 8px; margin:8px 0 16px; background:#fff; border:1px solid #e8e8e8; border-radius:5px; }
+#chartModal .chart-line-actions { display:flex; gap:12px; margin-top:8px; }
+#chartModal .chart-line-actions button { border:0; background:none; color:#1890ff; font-size:12px; cursor:pointer; }
 #chartModal input { accent-color:#1890ff; }
 #chartModal .chart-hint { font-size:12px; color:#888; line-height:1.7; margin-top:12px; }
 #chartModal .chart-preview { position:relative; min-width:0; min-height:0; padding:12px; }
@@ -197,11 +200,18 @@ th.drag-over { border-left:3px solid #1890ff; }
   <div class="chart-layout">
     <div class="chart-controls">
       <label class="chart-field">图表类型<select id="chartType" onchange="chartTypeChanged()"><option value="bar">柱状图</option><option value="line">折线图</option><option value="pie">扇形图（饼图）</option></select></label>
-      <label class="chart-field">横轴 / 分类字段<select id="chartDimension" onchange="renderDetailChart()"></select></label>
-      <label class="chart-field">指标类型<select id="chartMetricType" onchange="chartMetricsChanged()"><option value="abs">数量</option><option value="rate">百分比</option></select></label>
-      <div class="chart-field" style="margin-bottom:0">指标字段</div><div class="chart-metrics" id="chartMetrics"></div>
+      <label class="chart-field">横轴 / 分类字段<select id="chartDimension" onchange="chartDimensionChanged()"></select></label>
+      <div id="chartLineControls" hidden>
+        <div class="chart-field" style="margin-bottom:0">分线维度（可多选）</div>
+        <div class="chart-metrics chart-line-options" id="chartLineDimensions"></div>
+        <div class="chart-field" style="margin-bottom:0">选择对比对象 <span id="chartLineCount" style="font-weight:400;color:#888"></span></div>
+        <div class="chart-line-actions"><button type="button" onclick="selectChartLines(true)">全选</button><button type="button" onclick="selectChartLines(false)">清空</button></div>
+        <div class="chart-metrics chart-line-options" id="chartLineValues"></div>
+      </div>
+      <label class="chart-field">数据列类型<select id="chartMetricType" onchange="chartMetricsChanged()"><option value="abs">数量</option><option value="rate">百分比</option></select></label>
+      <div class="chart-field" style="margin-bottom:0">绘制的数据列</div><div class="chart-metrics" id="chartMetrics"></div>
       <label class="chart-field" style="margin-top:16px">排列方式<select id="chartSort" onchange="renderDetailChart()"><option value="table">跟随明细顺序</option><option value="dimension">按分类自然升序</option><option value="value">按首个所选指标降序</option></select></label>
-      <p class="chart-hint">每条明细独立绘制，同名分类不合并。悬停可查看该行维度和数值。</p>
+      <p class="chart-hint" id="chartHint">直接使用当前明细值。悬停可查看该行维度和数值。</p>
     </div>
     <div class="chart-preview"><div id="chartCanvas" role="img" aria-label="当前明细图表"></div><div class="chart-message" id="chartMessage" role="status"><span id="chartMessageText"></span><button id="chartRetry" type="button" onclick="startDetailChart()" hidden>重新加载</button></div></div>
   </div>
@@ -697,6 +707,7 @@ tableScroll.addEventListener('lostpointercapture',endTablePan);
 let chartSnapshot={rows:[],dimensions:[],metrics:[],source:''};
 let chartActive=null,chartInstance=null,chartResizeObserver=null,chartLibraryPromise=null;
 let chartGeneration=0,chartPreviousOverflow='',chartReturnFocus=null;
+let chartLineGroups=[],chartLineSelectionStamp=null;
 
 function syncChartButton(){
   const button=document.getElementById('chartButton');
@@ -749,7 +760,92 @@ function chartTypeChanged(){
   const kind=document.getElementById('chartMetricType');
   kind.disabled=document.getElementById('chartType').value==='pie';
   if(kind.disabled)kind.value='abs';
+  const line=document.getElementById('chartType').value==='line';
+  document.getElementById('chartLineControls').hidden=!line;
+  document.getElementById('chartSort').disabled=line;
+  if(line){document.getElementById('chartSort').value='dimension';populateChartLineDimensions();}
+  document.getElementById('chartHint').textContent=line?'按所选维度的不同值分别成线，可勾选多个维度进一步区分。横轴按自然顺序排列；每个点直接取对应明细值。':'每条明细独立绘制，同名分类不合并。悬停可查看该行维度和数值。';
   populateChartMetrics();renderDetailChart();
+}
+function chartDimensionChanged(){
+  if(document.getElementById('chartType').value==='line')populateChartLineDimensions();
+  renderDetailChart();
+}
+function chartSelectedLineDimensions(){return [...document.querySelectorAll('#chartLineDimensions input:checked')].map(input=>input.value);}
+function populateChartLineDimensions(){
+  if(!chartActive)return;
+  const container=document.getElementById('chartLineDimensions');
+  const initialized=container.dataset.initialized==='true',previous=chartSelectedLineDimensions();
+  const x=document.getElementById('chartDimension').value;
+  const available=chartActive.dimensions.filter(k=>k!==x);
+  let selected=previous.filter(k=>available.includes(k));
+  if(!initialized){
+    const first=['小组','主体','运营','渠道来源','运营期数','运营月份'].find(k=>available.includes(k)&&new Set(chartActive.rows.map(r=>r.dimensions[k])).size>1);
+    selected=first?[first]:[];
+  }
+  container.replaceChildren();container.dataset.initialized='true';
+  available.forEach(k=>{
+    const label=document.createElement('label'),input=document.createElement('input');
+    input.type='checkbox';input.value=k;input.checked=selected.includes(k);
+    input.onchange=()=>{populateChartLineValues();renderDetailChart();};
+    label.append(input,document.createTextNode(k));container.append(label);
+  });
+  if(!available.length)container.textContent='当前无其他可分线维度';
+  populateChartLineValues();
+}
+function populateChartLineValues(){
+  const dims=chartSelectedLineDimensions(),stamp=JSON.stringify(dims);
+  const container=document.getElementById('chartLineValues');
+  const previous=new Set([...container.querySelectorAll('input:checked')].map(input=>input.value));
+  const oldValues=new Set([...container.querySelectorAll('input')].map(input=>input.value));
+  const groups=new Map();
+  chartActive.rows.forEach(row=>{
+    const values=dims.map(k=>row.dimensions[k]),id=JSON.stringify(values);
+    if(!groups.has(id))groups.set(id,{id,name:dims.length?dims.map((k,i)=>k+'：'+(values[i]||'未填写')).join(' · '):'全部明细'});
+  });
+  chartLineGroups=[...groups.values()].sort((a,b)=>a.name.localeCompare(b.name,'zh',{numeric:true}));
+  container.replaceChildren();
+  chartLineGroups.forEach(group=>{
+    const label=document.createElement('label'),input=document.createElement('input');
+    input.type='checkbox';input.value=group.id;
+    input.checked=stamp!==chartLineSelectionStamp||!oldValues.has(group.id)||previous.has(group.id);
+    input.onchange=()=>{updateChartLineCount();renderDetailChart();};
+    label.append(input,document.createTextNode(group.name));container.append(label);
+  });
+  chartLineSelectionStamp=stamp;updateChartLineCount();
+}
+function updateChartLineCount(){
+  const inputs=[...document.querySelectorAll('#chartLineValues input')];
+  document.getElementById('chartLineCount').textContent='('+inputs.filter(input=>input.checked).length+'/'+inputs.length+')';
+}
+function selectChartLines(checked){
+  document.querySelectorAll('#chartLineValues input').forEach(input=>input.checked=checked);
+  updateChartLineCount();renderDetailChart();
+}
+function buildChartLineModel(keys){
+  const x=document.getElementById('chartDimension').value,dims=chartSelectedLineDimensions();
+  if(!x)return {error:'请选择一个横轴维度，例如运营期数或运营月份。'};
+  const selected=new Set([...document.querySelectorAll('#chartLineValues input:checked')].map(input=>input.value));
+  const groups=chartLineGroups.filter(g=>selected.has(g.id)).map(g=>({...g,points:new Map()}));
+  if(!groups.length)return {error:'请勾选要对比的对象。'};
+  const byId=new Map(groups.map(g=>[g.id,g])),categories=new Set();
+  let count=0;
+  for(const row of chartActive.rows){
+    const group=byId.get(JSON.stringify(dims.map(k=>row.dimensions[k])));if(!group)continue;
+    const value=row.dimensions[x],previous=group.points.get(value);
+    if(previous){
+      const extra=chartActive.dimensions.filter(k=>k!==x&&!dims.includes(k)&&previous.dimensions[k]!==row.dimensions[k]);
+      return {error:group.name+'，'+x+'「'+(value||'未填写')+'」对应多条明细。'+(extra.length?'请补充分线维度（如 '+extra.join('、')+'），或回到查询页调整汇总范围。':'请回到查询页调整筛选或汇总范围。')+'当前未合计或平均这些数值。'};
+    }
+    group.points.set(value,row);categories.add(value);count++;
+  }
+  const axis=[...categories].sort((a,b)=>a.localeCompare(b,'zh',{numeric:true}));
+  const series=groups.flatMap(group=>keys.map(key=>({
+    id:JSON.stringify([group.id,key]),name:dims.length?(group.name+(keys.length>1?' · '+key:'')):key,
+    key,rows:axis.map(value=>group.points.get(value)||null),
+    data:axis.map(value=>group.points.get(value)?.values[key]??null)
+  })));
+  return {axis,series,count};
 }
 function chartMetricsChanged(){populateChartMetrics();renderDetailChart();}
 function chartMessage(message,retry=false){
@@ -835,7 +931,7 @@ function renderDetailChart(){
   const keys=chartSelectedMetrics(),type=document.getElementById('chartType').value;
   const dim=document.getElementById('chartDimension').value,rate=document.getElementById('chartMetricType').value==='rate';
   const footnote=document.getElementById('chartFootnote');
-  if(!keys.length){chartInstance.clear();chartMessage('请选择至少一个指标字段。');return;}
+  if(!keys.length){chartInstance.clear();chartMessage('请选择至少一个要绘制的数据列。');return;}
   const rows=chartOrderedRows(keys);
   if(!rows.some(r=>keys.some(k=>r.values[k]!==null))){chartInstance.clear();chartMessage('所选指标在当前明细中没有有效数值。');return;}
   const label=r=>dim?(r.dimensions[dim]||'未填写'):'';
@@ -849,6 +945,24 @@ function renderDetailChart(){
     option={...option,tooltip:{trigger:'item',confine:true,formatter:p=>tip(rows[p.dataIndex],[key])+'<br>占当前总量：'+p.percent+'%'},legend:{show:false},series:[{type:'pie',radius:'65%',center:['50%','53%'],stillShowZeroSum:false,label:{show:rows.length<=20,formatter:'{b}\n{d}%'},labelLine:{show:rows.length<=20},data:rows.map(r=>({name:label(r),value:r.values[key]??0})),emphasis:{label:{show:true}}}]};
     const skipped=values.filter(v=>v===null||v===0).length;
     footnote.textContent='每条明细独立成扇区；占比按所选数量计算，不合并同名分类。'+(skipped?'其中 '+skipped+' 条为零或缺失，无可见扇区。':'')+(rows.length>20?'记录较多，已隐藏常驻标签，悬停可查看详情。':'');
+  }else if(type==='line'){
+    const model=buildChartLineModel(keys);
+    if(model.error){chartInstance.clear();chartMessage(model.error);footnote.textContent='每条线在同一横轴位置需要对应一条明细；可增加分线维度进行区分。';return;}
+    if(!model.series.some(s=>s.data.some(value=>value!==null))){chartInstance.clear();chartMessage('所选对象的这些数据列没有有效数值。');return;}
+    const many=model.axis.length>40;
+    option={...option,legend:{type:'scroll',top:36,left:16,right:16},grid:{top:90,left:65,right:25,bottom:many?100:65,containLabel:true},
+      tooltip:{trigger:'axis',confine:true,enterable:true,extraCssText:'max-height:60vh;overflow-y:auto;',formatter:params=>{
+        const points=Array.isArray(params)?params:[params];
+        return points.map(p=>{
+          const series=model.series[p.seriesIndex],row=series.rows[p.dataIndex];
+          return '<strong>'+escapeCellText(series.name)+'</strong><br>'+(row?tip(row,[series.key]):'该位置无明细');
+        }).join('<br><br>');
+      }},
+      xAxis:{type:'category',data:model.axis.map(value=>value||'未填写'),axisLabel:{hideOverlap:true,width:120,overflow:'truncate'},boundaryGap:false},
+      yAxis:{type:'value',name:rate?'百分比（%）':'数量',axisLabel:{formatter:rate?'{value}%':'{value}'}},
+      dataZoom:many?[{type:'slider',startValue:0,endValue:39,bottom:12,filterMode:'none'},{type:'inside',startValue:0,endValue:39,filterMode:'none'}]:[],
+      series:model.series.map(s=>({id:s.id,name:s.name,type:'line',data:s.data,connectNulls:false,smooth:false,showSymbol:model.axis.length<=100}))};
+    footnote.textContent='共 '+model.series.length+' 条折线、'+model.axis.length+' 个横轴位置，使用 '+model.count+' 条明细。各维度对象分别成线，直接取明细值；缺失位置留空。'+(many?'拖动底部滑块可查看其余位置。':'');
   }else{
     const many=rows.length>40;
     option={...option,legend:{type:'scroll',top:36,left:16,right:16},grid:{top:90,left:65,right:25,bottom:many?100:65,containLabel:true},tooltip:{trigger:'axis',confine:true,formatter:params=>{const points=Array.isArray(params)?params:[params];return points.length?tip(rows[points[0].dataIndex],points.map(p=>p.seriesName)):'';}},xAxis:{type:'category',data:rows.map(label),axisLabel:{hideOverlap:true,width:120,overflow:'truncate'},axisTick:{alignWithLabel:true}},yAxis:{type:'value',name:rate?'百分比（%）':'数量',axisLabel:{formatter:rate?'{value}%':'{value}'}},dataZoom:many?[{type:'slider',startValue:0,endValue:39,bottom:12,filterMode:'none'},{type:'inside',startValue:0,endValue:39,filterMode:'none'}]:[],series:keys.map(k=>({name:k,type,data:rows.map(r=>r.values[k]),connectNulls:false,smooth:false,showSymbol:rows.length<=100,barMaxWidth:36}))};
