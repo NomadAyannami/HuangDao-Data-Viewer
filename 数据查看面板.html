@@ -201,7 +201,7 @@ th.drag-over { border-left:3px solid #1890ff; }
       <label class="chart-field">指标类型<select id="chartMetricType" onchange="chartMetricsChanged()"><option value="abs">数量</option><option value="rate">百分比</option></select></label>
       <div class="chart-field" style="margin-bottom:0">指标字段</div><div class="chart-metrics" id="chartMetrics"></div>
       <label class="chart-field" style="margin-top:16px">排列方式<select id="chartSort" onchange="renderDetailChart()"><option value="table">跟随明细顺序</option><option value="dimension">按分类自然升序</option><option value="value">按首个所选指标降序</option></select></label>
-      <p class="chart-hint">每条明细独立绘制，同名分类不合并。标签中的 #编号 对应明细序号；悬停可查看该行维度和数值。</p>
+      <p class="chart-hint">每条明细独立绘制，同名分类不合并。悬停可查看该行维度和数值。</p>
     </div>
     <div class="chart-preview"><div id="chartCanvas" role="img" aria-label="当前明细图表"></div><div class="chart-message" id="chartMessage" role="status"><span id="chartMessageText"></span><button id="chartRetry" type="button" onclick="startDetailChart()" hidden>重新加载</button></div></div>
   </div>
@@ -793,7 +793,7 @@ function openChartModal(){
   if(typeof modal.showModal!=='function'){alert('当前浏览器不支持绘图弹窗，请更新飞书客户端后重试。');return;}
   chartActive=chartSnapshot;
   const dim=document.getElementById('chartDimension'),previous=dim.value;
-  dim.replaceChildren(new Option('明细序号',''));
+  dim.replaceChildren(new Option('不显示分类标签',''));
   chartActive.dimensions.forEach(k=>dim.add(new Option(k,k)));
   dim.value=chartActive.dimensions.includes(previous)?previous:(chartActive.dimensions[0]||'');
   const kind=document.getElementById('chartMetricType');
@@ -838,8 +838,8 @@ function renderDetailChart(){
   if(!keys.length){chartInstance.clear();chartMessage('请选择至少一个指标字段。');return;}
   const rows=chartOrderedRows(keys);
   if(!rows.some(r=>keys.some(k=>r.values[k]!==null))){chartInstance.clear();chartMessage('所选指标在当前明细中没有有效数值。');return;}
-  const label=r=>(dim?(r.dimensions[dim]||'未填写')+' · ':'')+'#'+r.number;
-  const tip=(row,metricKeys)=>'<strong>明细 #'+row.number+'</strong><br>'+chartActive.dimensions.map(k=>escapeCellText(k)+'：'+escapeCellText(row.dimensions[k]||'未填写')).join('<br>')+'<br>'+metricKeys.map(k=>escapeCellText(k)+'：'+escapeCellText(row.display[k]||'无')).join('<br>');
+  const label=r=>dim?(r.dimensions[dim]||'未填写'):'';
+  const tip=(row,metricKeys)=>'<strong>明细信息</strong><br>'+chartActive.dimensions.map(k=>escapeCellText(k)+'：'+escapeCellText(row.dimensions[k]||'未填写')).join('<br>')+'<br>'+metricKeys.map(k=>escapeCellText(k)+'：'+escapeCellText(row.display[k]||'无')).join('<br>');
   let option={animation:rows.length<=300,color:['#1890ff','#52c41a','#fa8c16','#722ed1','#eb2f96','#13c2c2','#2f54eb','#a0d911'],textStyle:{fontFamily:'Microsoft YaHei, sans-serif'},title:{text:keys.length===1?keys[0]:'明细指标对比',left:16,top:8,textStyle:{fontSize:16,fontWeight:500}},aria:{enabled:true}};
   if(type==='pie'){
     const key=keys[0],values=rows.map(r=>r.values[key]);
