@@ -213,7 +213,7 @@ th.drag-over { border-left:3px solid #1890ff; }
       <label class="chart-field">横轴 / 分类字段<select id="chartDimension" onchange="chartDimensionChanged()"></select></label>
       <div class="chart-field" style="margin-bottom:0">展示范围（各维度可多选）</div>
       <div id="chartRanges"></div>
-      <label class="chart-field">数据列类型<select id="chartMetricType" onchange="chartMetricsChanged()"><option value="abs">数量</option><option value="rate">百分比</option></select></label>
+      <label class="chart-field">数据列类型<select id="chartMetricType" onchange="chartMetricsChanged()"><option value="abs">数量</option><option value="rate" selected>百分比</option></select></label>
       <div class="chart-field" style="margin-bottom:0">绘制的数据列</div><div class="chart-metrics" id="chartMetrics"></div>
       <label class="chart-field" style="margin-top:16px">排列方式<select id="chartSort" onchange="markChartDirty()"><option value="table">跟随明细顺序</option><option value="dimension">按分类自然升序</option><option value="value">按首个所选指标降序</option></select></label>
       <p class="chart-hint" id="chartHint">直接使用当前明细值。悬停可查看该行维度和数值。</p>
@@ -752,7 +752,7 @@ function populateChartMetrics(preferred=chartSelectedMetrics()){
   const kind=document.getElementById('chartMetricType').value;
   const available=chartActive.metrics.filter(c=>c.type===kind);
   let selected=available.filter(c=>preferred.includes(c.key)).map(c=>c.key);
-  if(!selected.length&&available.length)selected=[available[0].key];
+  if(!selected.length&&available.length)selected=[(available.find(c=>c.key==='总转化率')||available[0]).key];
   if(pie)selected=selected.slice(0,1);
   const container=document.getElementById('chartMetrics');container.replaceChildren();
   available.forEach(c=>{
@@ -792,13 +792,33 @@ function markChartDirty(){
   if(chartHasRendered)document.getElementById('chartMessage').hidden=true;
   else chartMessage('选择展示范围和数据列后，点击“绘图”。');
 }
+function getChartRangeDefinitions(){
+  const hierarchy=['主体','小组','运营'];
+  const lowest=[...hierarchy].reverse().find(key=>chartActive.dimensions.includes(key));
+  return chartActive.dimensions.filter(key=>!hierarchy.includes(key)||key===lowest).map(key=>{
+    const path=key===lowest?hierarchy.slice(0,hierarchy.indexOf(key)+1).filter(k=>chartActive.dimensions.includes(k)):null;
+    const valueFor=row=>path?JSON.stringify(path.map(k=>row.dimensions[k])):row.dimensions[key];
+    const examples=new Map(),names=new Map();
+    chartActive.rows.forEach(row=>{
+      const value=valueFor(row),name=row.dimensions[key];
+      if(!examples.has(value))examples.set(value,row);
+      if(!names.has(name))names.set(name,new Set());names.get(name).add(value);
+    });
+    const labels=new Map([...examples].map(([value,row])=>{
+      const name=row.dimensions[key],parents=path?.slice(0,-1)||[];
+      const suffix=parents.length&&names.get(name).size>1?'（'+parents.map(k=>row.dimensions[k]||'未填写').join('／')+'）':'';
+      return [value,(name||'（未填写）')+suffix];
+    }));
+    const values=[...examples.keys()].sort((a,b)=>labels.get(a).localeCompare(labels.get(b),'zh',{numeric:true}));
+    return {key,values,labels,valueFor};
+  });
+}
 function populateChartRanges(){
   const container=document.getElementById('chartRanges');container.replaceChildren();chartRangeControls=new Map();
-  chartActive.dimensions.forEach(key=>{
-    const values=[...new Set(chartActive.rows.map(row=>row.dimensions[key]))].sort((a,b)=>a.localeCompare(b,'zh',{numeric:true}));
+  getChartRangeDefinitions().forEach(({key,values,labels,valueFor})=>{
     const box=document.createElement('div'),title=document.createElement('span'),details=document.createElement('details'),summary=document.createElement('summary');
     box.className='chart-range';title.className='chart-range-title';title.textContent=key;
-    const state={selected:new Set(values),inputs:[],summary,values};chartRangeControls.set(key,state);
+    const state={selected:new Set(values),inputs:[],summary,values,labels,valueFor};chartRangeControls.set(key,state);
     const actions=document.createElement('div');actions.className='chart-line-actions';actions.style.padding='0 8px';
     [['全选',true],['清空',false]].forEach(([text,checked])=>{
       const button=document.createElement('button');button.type='button';button.textContent=text;
@@ -809,12 +829,12 @@ function populateChartRanges(){
       const label=document.createElement('label'),input=document.createElement('input');
       input.type='checkbox';input.value=value;input.checked=true;
       input.onchange=()=>{if(input.checked)state.selected.add(value);else state.selected.delete(value);updateChartRangeSummary(key);markChartDirty();};
-      label.append(input,document.createTextNode(value||'（未填写）'));options.append(label);state.inputs.push(input);
+      label.append(input,document.createTextNode(labels.get(value)));options.append(label);state.inputs.push(input);
     });
     details.append(summary,actions);
     if(values.length>8){
       const search=document.createElement('input');search.type='search';search.placeholder='搜索'+key;search.className='chart-range-search';search.setAttribute('aria-label','搜索'+key);
-      search.oninput=()=>{const query=search.value.trim().toLocaleLowerCase();state.inputs.forEach(input=>input.parentElement.hidden=!(input.value||'（未填写）').toLocaleLowerCase().includes(query));};details.append(search);
+      search.oninput=()=>{const query=search.value.trim().toLocaleLowerCase();state.inputs.forEach(input=>input.parentElement.hidden=!labels.get(input.value).toLocaleLowerCase().includes(query));};details.append(search);
     }
     details.append(options);box.append(title,details);container.append(box);updateChartRangeSummary(key);
   });
@@ -822,11 +842,11 @@ function populateChartRanges(){
 }
 function updateChartRangeSummary(key){
   const state=chartRangeControls.get(key),count=state.selected.size;
-  state.summary.textContent=count===0?'未选择':count===state.values.length?'全部（'+count+'项）':count===1?([...state.selected][0]||'（未填写）'):'已选 '+count+' / '+state.values.length+' 项';
+  state.summary.textContent=count===0?'未选择':count===state.values.length?'全部（'+count+'项）':count===1?state.labels.get([...state.selected][0]):'已选 '+count+' / '+state.values.length+' 项';
 }
 function getChartFilteredRows(){
   const ranges=[...chartRangeControls];
-  return chartActive.rows.filter(row=>ranges.every(([key,state])=>state.selected.has(row.dimensions[key])));
+  return chartActive.rows.filter(row=>ranges.every(([,state])=>state.selected.has(state.valueFor(row))));
 }
 function buildChartLineModel(rows,x,keys){
   if(!['运营期数','运营月份'].includes(x)||!chartActive.dimensions.includes(x))return {error:'折线图横轴只能选择未汇总的运营期数或运营月份。请在查询中保留一个时间维度后再绘图。'};
