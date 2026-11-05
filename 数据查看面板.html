@@ -763,8 +763,20 @@ function populateChartMetrics(preferred=chartSelectedMetrics()){
   });
   if(!available.length)container.textContent='当前展示字段中没有此类指标';
 }
+function populateChartAxisOptions(){
+  if(!chartActive)return;
+  const select=document.getElementById('chartDimension'),previous=select.value;
+  const line=document.getElementById('chartType').value==='line';
+  const available=line?['运营期数','运营月份'].filter(key=>chartActive.dimensions.includes(key)):chartActive.dimensions;
+  select.replaceChildren();select.disabled=line&&!available.length;
+  if(!line)select.add(new Option('不显示分类标签',''));
+  available.forEach(key=>select.add(new Option(key,key)));
+  if(select.disabled){const option=new Option('时间维度已汇总','');option.disabled=true;select.add(option);}
+  select.value=available.includes(previous)?previous:(available[0]||'');
+}
 function chartTypeChanged(){
   const type=document.getElementById('chartType').value,kind=document.getElementById('chartMetricType');
+  populateChartAxisOptions();
   kind.disabled=type==='pie';if(kind.disabled)kind.value='abs';
   document.getElementById('chartSort').disabled=type==='line';
   if(type==='line')document.getElementById('chartSort').value='dimension';
@@ -817,7 +829,7 @@ function getChartFilteredRows(){
   return chartActive.rows.filter(row=>ranges.every(([key,state])=>state.selected.has(row.dimensions[key])));
 }
 function buildChartLineModel(rows,x,keys){
-  if(!x)return {error:'请选择一个横轴维度，例如运营期数或运营月份。'};
+  if(!['运营期数','运营月份'].includes(x)||!chartActive.dimensions.includes(x))return {error:'折线图横轴只能选择未汇总的运营期数或运营月份。请在查询中保留一个时间维度后再绘图。'};
   // Only omit month from the line key when each period determines one known month.
   // Month remains available as a filter and in the original-row tooltip.
   let monthAsContext=x==='运营期数'&&chartActive.dimensions.includes('运营月份');
@@ -918,10 +930,6 @@ function openChartModal(){
   const modal=document.getElementById('chartModal');if(modal.open)return;
   if(typeof modal.showModal!=='function'){alert('当前浏览器不支持绘图弹窗，请更新飞书客户端后重试。');return;}
   chartActive=chartSnapshot;chartHasRendered=false;
-  const dim=document.getElementById('chartDimension'),previous=dim.value;
-  dim.replaceChildren(new Option('不显示分类标签',''));
-  chartActive.dimensions.forEach(k=>dim.add(new Option(k,k)));
-  dim.value=chartActive.dimensions.includes(previous)?previous:(chartActive.dimensions[0]||'');
   const kind=document.getElementById('chartMetricType');
   if(!chartActive.metrics.some(c=>c.type===kind.value)&&document.getElementById('chartType').value!=='pie')kind.value=chartActive.metrics[0]?.type||'abs';
   document.getElementById('chartScope').textContent=chartActive.source+' · 当前查询明细 '+chartActive.rows.length.toLocaleString()+' 条（包含未加载部分）';
@@ -962,21 +970,18 @@ function renderDetailChart(request){
     const model=request.model;
     const many=model.axis.length>40;
     option={...option,legend:{type:'scroll',top:36,left:16,right:16},grid:{top:90,left:65,right:25,bottom:many?100:65,containLabel:true},
-      tooltip:{trigger:'axis',confine:true,enterable:true,extraCssText:'max-height:60vh;overflow-y:auto;',formatter:params=>{
-        const points=Array.isArray(params)?params:[params];
-        return points.map(p=>{
-          const series=model.series[p.seriesIndex],row=series.rows[p.dataIndex];
-          return '<strong>'+escapeCellText(series.name)+'</strong><br>'+(row?tip(row,[series.key]):'该位置无明细');
-        }).join('<br><br>');
+      tooltip:{trigger:'item',triggerOn:'mousemove',confine:true,formatter:p=>{
+        const series=model.series[p.seriesIndex],row=series?.rows[p.dataIndex];
+        return row&&series.data[p.dataIndex]!==null?tip(row,[series.key]):'';
       }},
       xAxis:{type:'category',data:model.axis.map(value=>value||'未填写'),axisLabel:{hideOverlap:true,width:120,overflow:'truncate'},boundaryGap:false},
       yAxis:{type:'value',name:rate?'百分比（%）':'数量',axisLabel:{formatter:rate?'{value}%':'{value}'}},
       dataZoom:many?[{type:'slider',startValue:0,endValue:39,bottom:12,filterMode:'none'},{type:'inside',startValue:0,endValue:39,filterMode:'none'}]:[],
-      series:model.series.map(s=>({id:s.id,name:s.name,type:'line',data:s.data,connectNulls:false,smooth:false,showSymbol:model.axis.length<=100}))};
+      series:model.series.map(s=>({id:s.id,name:s.name,type:'line',data:s.data,connectNulls:false,smooth:false,showSymbol:true,showAllSymbol:true,symbolSize:6}))};
     footnote.textContent='共 '+model.series.length+' 条折线、'+model.axis.length+' 个横轴位置，使用 '+model.count+' 条明细。'+(model.dims.length?'按 '+model.dims.join('＋')+' 自动分线。':'')+(model.monthAsContext?'月份仅用于筛选和说明，跨月期数连续显示。':'')+'直接取明细值，缺失位置留空。'+(many?'拖动底部滑块可查看其余位置。':'');
   }else{
     const many=rows.length>40;
-    option={...option,legend:{type:'scroll',top:36,left:16,right:16},grid:{top:90,left:65,right:25,bottom:many?100:65,containLabel:true},tooltip:{trigger:'axis',confine:true,formatter:params=>{const points=Array.isArray(params)?params:[params];return points.length?tip(rows[points[0].dataIndex],points.map(p=>p.seriesName)):'';}},xAxis:{type:'category',data:rows.map(label),axisLabel:{hideOverlap:true,width:120,overflow:'truncate'},axisTick:{alignWithLabel:true}},yAxis:{type:'value',name:rate?'百分比（%）':'数量',axisLabel:{formatter:rate?'{value}%':'{value}'}},dataZoom:many?[{type:'slider',startValue:0,endValue:39,bottom:12,filterMode:'none'},{type:'inside',startValue:0,endValue:39,filterMode:'none'}]:[],series:keys.map(k=>({name:k,type,data:rows.map(r=>r.values[k]),connectNulls:false,smooth:false,showSymbol:rows.length<=100,barMaxWidth:36}))};
+    option={...option,legend:{type:'scroll',top:36,left:16,right:16},grid:{top:90,left:65,right:25,bottom:many?100:65,containLabel:true},tooltip:{trigger:'item',triggerOn:'mousemove',confine:true,formatter:p=>rows[p.dataIndex]?tip(rows[p.dataIndex],[p.seriesName]):''},xAxis:{type:'category',data:rows.map(label),axisLabel:{hideOverlap:true,width:120,overflow:'truncate'},axisTick:{alignWithLabel:true}},yAxis:{type:'value',name:rate?'百分比（%）':'数量',axisLabel:{formatter:rate?'{value}%':'{value}'}},dataZoom:many?[{type:'slider',startValue:0,endValue:39,bottom:12,filterMode:'none'},{type:'inside',startValue:0,endValue:39,filterMode:'none'}]:[],series:keys.map(k=>({name:k,type,data:rows.map(r=>r.values[k]),connectNulls:false,smooth:false,showSymbol:rows.length<=100,barMaxWidth:36}))};
     footnote.textContent='直接使用明细值，不聚合、不重算比率；缺失值留空。'+(many?'共 '+rows.length+' 条，拖动底部滑块可查看其余记录。':'');
   }
   document.getElementById('chartMessage').hidden=true;
