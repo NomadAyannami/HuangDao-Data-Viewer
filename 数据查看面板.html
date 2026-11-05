@@ -740,6 +740,8 @@ function captureChartSnapshot(rows){
         const number=value===''||value==='无'?NaN:(c.type==='rate'?parseFloat(value):Number(value));
         values[c.key]=Number.isFinite(number)?number:null;
       });
+      // 悬停信息始终保留该条明细的授权数，即使此列没有展示或参与绘图。
+      display['授权数']=String(r['授权数']??'');
       return {number:i+1,dimensions,values,display};
     })
   };
@@ -983,7 +985,7 @@ function renderDetailChart(request){
   const axisNote=axisTypes.length>1?'数量对应左轴，百分比对应右轴。':'';
   const footnote=document.getElementById('chartFootnote');
   const label=r=>dim?(r.dimensions[dim]||'未填写'):'';
-  const tip=(row,metricKeys)=>'<strong>明细信息</strong><br>'+dimensions.map(k=>escapeCellText(k)+'：'+escapeCellText(row.dimensions[k]||'未填写')).join('<br>')+'<br>'+metricKeys.map(k=>escapeCellText(k)+'：'+escapeCellText(row.display[k]||'无')).join('<br>');
+  const tip=(row,metricKeys)=>'<strong>明细信息</strong><br>'+dimensions.map(k=>escapeCellText(k)+'：'+escapeCellText(row.dimensions[k]||'未填写')).join('<br>')+'<br>'+[...new Set([...metricKeys,'授权数'])].map(k=>escapeCellText(k)+'：'+escapeCellText(row.display[k]||'无')).join('<br>');
   let option={animation:rows.length<=300,color:['#1890ff','#52c41a','#fa8c16','#722ed1','#eb2f96','#13c2c2','#2f54eb','#a0d911'],textStyle:{fontFamily:'Microsoft YaHei, sans-serif'},title:{text:keys.length===1?keys[0]:'明细指标对比',left:16,top:8,textStyle:{fontSize:16,fontWeight:500}},aria:{enabled:true}};
   if(type==='pie'){
     const key=keys[0],values=rows.map(r=>r.values[key]);
@@ -1096,5 +1098,5 @@ if (window.h5sdk && window.tt) {
 
 
 </div>
-<footer id="pageVersionFooter">页面版本：<strong>2026.11.05-01</strong> · 数据列统一多选</footer>
+<footer id="pageVersionFooter">页面版本：<strong>2026.11.05-02</strong> · 悬停显示授权数</footer>
 </body></html>
