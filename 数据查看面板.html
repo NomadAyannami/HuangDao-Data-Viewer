@@ -9,8 +9,9 @@
 <style>
 * { margin:0; padding:0; box-sizing:border-box; }
 body { font-family: -apple-system, "Microsoft YaHei", sans-serif; background:#f0f2f5; color:#333; }
-body:not(.feishu-verified) > :not(#accessGate) { display:none !important; }
-#accessGate { min-height:100vh; display:flex; align-items:center; justify-content:center; padding:24px; text-align:center; color:#666; font-size:16px; }
+body:not(.feishu-verified) > :not(#accessGate):not(#pageVersionFooter) { display:none !important; }
+#accessGate { min-height:calc(100vh - 44px); display:flex; align-items:center; justify-content:center; padding:24px; text-align:center; color:#666; font-size:16px; }
+#pageVersionFooter { min-height:44px; padding:12px 20px; text-align:center; font-size:13px; line-height:20px; color:#555; background:#fff; border-top:1px solid #e8e8e8; }
 body.feishu-verified #accessGate { display:none; }
 .header { background:linear-gradient(135deg,#1a1a2e,#16213e); color:#fff; padding:14px 24px; display:flex; align-items:center; justify-content:space-between; }
 .header h1 { font-size:20px; font-weight:600; }
@@ -213,7 +214,6 @@ th.drag-over { border-left:3px solid #1890ff; }
       <label class="chart-field">横轴 / 分类字段<select id="chartDimension" onchange="chartDimensionChanged()"></select></label>
       <div class="chart-field" style="margin-bottom:0">展示范围（各维度可多选）</div>
       <div id="chartRanges"></div>
-      <label class="chart-field">数据列类型<select id="chartMetricType" onchange="chartMetricsChanged()"><option value="abs">数量</option><option value="rate" selected>百分比</option></select></label>
       <div class="chart-field" style="margin-bottom:0">绘制的数据列</div><div class="chart-metrics" id="chartMetrics"></div>
       <label class="chart-field" style="margin-top:16px">排列方式<select id="chartSort" onchange="markChartDirty()"><option value="table">跟随明细顺序</option><option value="dimension">按分类自然升序</option><option value="value">按首个所选指标降序</option></select></label>
       <p class="chart-hint" id="chartHint">直接使用当前明细值。悬停可查看该行维度和数值。</p>
@@ -749,19 +749,21 @@ function chartSelectedMetrics(){return [...document.querySelectorAll('#chartMetr
 function populateChartMetrics(preferred=chartSelectedMetrics()){
   if(!chartActive)return;
   const pie=document.getElementById('chartType').value==='pie';
-  const kind=document.getElementById('chartMetricType').value;
-  const available=chartActive.metrics.filter(c=>c.type===kind);
-  let selected=available.filter(c=>preferred.includes(c.key)).map(c=>c.key);
-  if(!selected.length&&available.length)selected=[(available.find(c=>c.key==='总转化率')||available[0]).key];
+  const available=chartActive.metrics;
+  const selectable=available.filter(c=>!pie||c.type==='abs');
+  let selected=selectable.filter(c=>preferred.includes(c.key)).map(c=>c.key);
+  if(!selected.length&&selectable.length)selected=[(selectable.find(c=>c.key==='总转化率')||selectable[0]).key];
   if(pie)selected=selected.slice(0,1);
   const container=document.getElementById('chartMetrics');container.replaceChildren();
   available.forEach(c=>{
     const label=document.createElement('label'),input=document.createElement('input');
     input.type=pie?'radio':'checkbox';input.name='chartMetric';input.value=c.key;input.checked=selected.includes(c.key);
+    input.disabled=pie&&c.type!=='abs';
+    if(input.disabled){label.title='饼图仅支持一个数量列；百分比请使用折线图或柱状图';label.style.opacity='0.5';}
     input.addEventListener('change',markChartDirty);
     label.append(input,document.createTextNode(c.key));container.append(label);
   });
-  if(!available.length)container.textContent='当前展示字段中没有此类指标';
+  if(!available.length)container.textContent='当前没有可绘制的数据列';
 }
 function populateChartAxisOptions(){
   if(!chartActive)return;
@@ -775,16 +777,14 @@ function populateChartAxisOptions(){
   select.value=available.includes(previous)?previous:(available[0]||'');
 }
 function chartTypeChanged(){
-  const type=document.getElementById('chartType').value,kind=document.getElementById('chartMetricType');
+  const type=document.getElementById('chartType').value;
   populateChartAxisOptions();
-  kind.disabled=type==='pie';if(kind.disabled)kind.value='abs';
   document.getElementById('chartSort').disabled=type==='line';
   if(type==='line')document.getElementById('chartSort').value='dimension';
-  document.getElementById('chartHint').textContent=type==='line'?'横轴以外的未汇总维度自动组合成不同折线。先选择展示范围，再点击绘图；最多显示 50 条曲线。':'每条明细独立绘制。选择展示范围后点击绘图，不合并同名分类。';
+  document.getElementById('chartHint').textContent=type==='line'?'横轴以外的未汇总维度自动组合成不同折线。先选择展示范围，再点击绘图；最多显示 50 条曲线。':'每条明细独立绘制。选择展示范围后点击绘图，不合并同名分类。'+(type==='pie'?'饼图仅支持单个数量列。':'');
   populateChartMetrics();markChartDirty();
 }
 function chartDimensionChanged(){markChartDirty();}
-function chartMetricsChanged(){populateChartMetrics();markChartDirty();}
 function markChartDirty(){
   ++chartGeneration;
   document.getElementById('chartDrawButton').disabled=false;
@@ -884,7 +884,9 @@ function prepareChartRequest(){
   const rows=getChartFilteredRows();
   if(!rows.length)return {error:'当前所选范围没有明细，请调整各维度的选项。'};
   if(!rows.some(row=>keys.some(key=>row.values[key]!==null)))return {error:'所选数据列在当前范围内没有有效数值。'};
-  const request={rows,keys,type,dim,rate:document.getElementById('chartMetricType').value==='rate',dimensions:[...chartActive.dimensions],source:chartActive.source};
+  const metricTypes=Object.fromEntries(chartActive.metrics.map(c=>[c.key,c.type]));
+  if(type==='pie'&&(keys.length!==1||metricTypes[keys[0]]!=='abs'))return {error:'饼图请选择一个数量列；多列对比请使用折线图或柱状图。'};
+  const request={rows,keys,type,dim,metricTypes,dimensions:[...chartActive.dimensions],source:chartActive.source};
   if(type==='line'){
     request.model=buildChartLineModel(rows,dim,keys);if(request.model.error)return request.model;
   }else{
@@ -950,8 +952,6 @@ function openChartModal(){
   const modal=document.getElementById('chartModal');if(modal.open)return;
   if(typeof modal.showModal!=='function'){alert('当前浏览器不支持绘图弹窗，请更新飞书客户端后重试。');return;}
   chartActive=chartSnapshot;chartHasRendered=false;
-  const kind=document.getElementById('chartMetricType');
-  if(!chartActive.metrics.some(c=>c.type===kind.value)&&document.getElementById('chartType').value!=='pie')kind.value=chartActive.metrics[0]?.type||'abs';
   document.getElementById('chartScope').textContent=chartActive.source+' · 当前查询明细 '+chartActive.rows.length.toLocaleString()+' 条（包含未加载部分）';
   populateChartRanges();
   chartTypeChanged();
@@ -976,7 +976,11 @@ window.addEventListener('resize',()=>chartInstance?.resize());
 
 function renderDetailChart(request){
   if(!chartActive||!chartInstance)return;
-  const {keys,type,dim,rate,rows,dimensions,source}=request;
+  const {keys,type,dim,metricTypes,rows,dimensions,source}=request;
+  const axisTypes=['abs','rate'].filter(kind=>keys.some(key=>metricTypes[key]===kind));
+  const yAxis=axisTypes.map((kind,index)=>({type:'value',name:kind==='rate'?'百分比（%）':'数量',position:index?'right':'left',axisLabel:{formatter:kind==='rate'?'{value}%':'{value}'},splitLine:{show:index===0}}));
+  const axisFor=key=>axisTypes.indexOf(metricTypes[key]);
+  const axisNote=axisTypes.length>1?'数量对应左轴，百分比对应右轴。':'';
   const footnote=document.getElementById('chartFootnote');
   const label=r=>dim?(r.dimensions[dim]||'未填写'):'';
   const tip=(row,metricKeys)=>'<strong>明细信息</strong><br>'+dimensions.map(k=>escapeCellText(k)+'：'+escapeCellText(row.dimensions[k]||'未填写')).join('<br>')+'<br>'+metricKeys.map(k=>escapeCellText(k)+'：'+escapeCellText(row.display[k]||'无')).join('<br>');
@@ -995,16 +999,17 @@ function renderDetailChart(request){
         return row&&series.data[p.dataIndex]!==null?tip(row,[series.key]):'';
       }},
       xAxis:{type:'category',data:model.axis.map(value=>value||'未填写'),axisLabel:{hideOverlap:true,width:120,overflow:'truncate'},boundaryGap:false},
-      yAxis:{type:'value',name:rate?'百分比（%）':'数量',axisLabel:{formatter:rate?'{value}%':'{value}'}},
+      yAxis,
       dataZoom:many?[{type:'slider',startValue:0,endValue:39,bottom:12,filterMode:'none'},{type:'inside',startValue:0,endValue:39,filterMode:'none'}]:[],
-      series:model.series.map(s=>({id:s.id,name:s.name,type:'line',data:s.data,connectNulls:false,smooth:false,showSymbol:true,showAllSymbol:true,symbolSize:6}))};
+      series:model.series.map(s=>({id:s.id,name:s.name,type:'line',yAxisIndex:axisFor(s.key),data:s.data,connectNulls:false,smooth:false,showSymbol:true,showAllSymbol:true,symbolSize:6}))};
     footnote.textContent='共 '+model.series.length+' 条折线、'+model.axis.length+' 个横轴位置，使用 '+model.count+' 条明细。'+(model.dims.length?'按 '+model.dims.join('＋')+' 自动分线。':'')+(model.monthAsContext?'月份仅用于筛选和说明，跨月期数连续显示。':'')+'直接取明细值，缺失位置留空。'+(many?'拖动底部滑块可查看其余位置。':'');
   }else{
     const many=rows.length>40;
-    option={...option,legend:{type:'scroll',top:36,left:16,right:16},grid:{top:90,left:65,right:25,bottom:many?100:65,containLabel:true},tooltip:{trigger:'item',triggerOn:'mousemove',confine:true,formatter:p=>rows[p.dataIndex]?tip(rows[p.dataIndex],[p.seriesName]):''},xAxis:{type:'category',data:rows.map(label),axisLabel:{hideOverlap:true,width:120,overflow:'truncate'},axisTick:{alignWithLabel:true}},yAxis:{type:'value',name:rate?'百分比（%）':'数量',axisLabel:{formatter:rate?'{value}%':'{value}'}},dataZoom:many?[{type:'slider',startValue:0,endValue:39,bottom:12,filterMode:'none'},{type:'inside',startValue:0,endValue:39,filterMode:'none'}]:[],series:keys.map(k=>({name:k,type,data:rows.map(r=>r.values[k]),connectNulls:false,smooth:false,showSymbol:rows.length<=100,barMaxWidth:36}))};
+    option={...option,legend:{type:'scroll',top:36,left:16,right:16},grid:{top:90,left:65,right:25,bottom:many?100:65,containLabel:true},tooltip:{trigger:'item',triggerOn:'mousemove',confine:true,formatter:p=>rows[p.dataIndex]?tip(rows[p.dataIndex],[p.seriesName]):''},xAxis:{type:'category',data:rows.map(label),axisLabel:{hideOverlap:true,width:120,overflow:'truncate'},axisTick:{alignWithLabel:true}},yAxis,dataZoom:many?[{type:'slider',startValue:0,endValue:39,bottom:12,filterMode:'none'},{type:'inside',startValue:0,endValue:39,filterMode:'none'}]:[],series:keys.map(k=>({name:k,type,yAxisIndex:axisFor(k),data:rows.map(r=>r.values[k]),connectNulls:false,smooth:false,showSymbol:rows.length<=100,barMaxWidth:36}))};
     footnote.textContent='直接使用明细值，不聚合、不重算比率；缺失值留空。'+(many?'共 '+rows.length+' 条，拖动底部滑块可查看其余记录。':'');
   }
   document.getElementById('chartMessage').hidden=true;
+  if(type!=='pie')footnote.textContent+=axisNote;
   document.getElementById('chartCanvas').setAttribute('aria-label',source+' '+rows.length+'条明细，'+keys.join('、'));
   chartInstance.setOption(option,true);chartInstance.resize();
 }
@@ -1090,4 +1095,6 @@ if (window.h5sdk && window.tt) {
 </script>
 
 
-</div></body></html>
+</div>
+<footer id="pageVersionFooter">页面版本：<strong>2026.11.05-01</strong> · 数据列统一多选</footer>
+</body></html>
